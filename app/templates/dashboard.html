@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Dashboard Header -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <h2><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h2>
+            <p class="text-muted">Manage and analyze your contracts</p>
+        </div>
+        <div class="col-lg-4 text-end">
+            <button class="btn btn-primary" onclick="uploadContract()">
+                <i class="fas fa-plus me-2"></i>Upload New Contract
+            </button>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-upload me-2"></i>Quick Upload
+                </div>
+                <div class="card-body">
+                    <div class="file-upload-area" onclick="uploadContract()">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                        <h5>Drop files here or click to upload</h5>
+                        <p class="text-muted">Supports PDF, DOCX files up to 10MB</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-2"></i>Quick Stats
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-primary">0</h4>
+                            <small>Total Contracts</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success">0</h4>
+                            <small>Analyzed Today</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-warning">0</h4>
+                            <small>High Risk</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-info">0</h4>
+                            <small>Pending</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Contracts -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-file-contract me-2"></i>Recent Contracts
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Contract Name</th>
+                            <th>Upload Date</th>
+                            <th>Status</th>
+                            <th>Risk Level</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                <br>No contracts uploaded yet. <a href="#" onclick="uploadContract()">Upload your first contract</a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Analysis Summary -->
+    <div class="row mt-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-2"></i>Risk Distribution
+                </div>
+                <div class="card-body text-center">
+                    <p class="text-muted">No data available yet</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-timeline me-2"></i>Recent Activity
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">No recent activity</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function uploadContract() {
+    // Create a file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.pdf,.docx,.doc';
+    fileInput.style.display = 'none';
+    
+    fileInput.onchange = function(e) {
+        if (e.target.files.length > 0) {
+            const file = e.target.files[0];
+            
+            // Show loading state
+            const uploadArea = document.querySelector('.file-upload-area');
+            if (uploadArea) {
+                uploadArea.innerHTML = `
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Uploading...</span>
+                    </div>
+                    <h5 class="mt-3">Uploading ${file.name}...</h5>
+                    <p class="text-muted">Please wait while we process your contract</p>
+                `;
+            }
+            
+            // Simulate upload process (replace with actual upload logic later)
+            setTimeout(() => {
+                alert('File upload functionality will be implemented with authentication and SharePoint integration.');
+                location.reload();
+            }, 2000);
+        }
+    };
+    
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    document.body.removeChild(fileInput);
+}
+
+// Drag and drop functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadArea = document.querySelector('.file-upload-area');
+    
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                // Trigger the upload process
+                const file = files[0];
+                if (file.type === 'application/pdf' || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+                    // Show loading and process file
+                    this.innerHTML = `
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                        <h5 class="mt-3">Processing ${file.name}...</h5>
+                        <p class="text-muted">Analyzing contract content</p>
+                    `;
+                    
+                    setTimeout(() => {
+                        alert('Drag and drop upload functionality will be implemented with full backend integration.');
+                        location.reload();
+                    }, 2000);
+                } else {
+                    alert('Please upload a PDF or Word document (.pdf, .docx, .doc)');
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
