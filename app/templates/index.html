@@ -27,14 +27,14 @@
                         <div class="row mb-3">
                             <!-- Left Column -->
                             <div class="col-md-4">
-                                <label for="submitterName" class="form-label">Submitter Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="submitterName" name="submitterName" 
-                                       value="{% if current_user %}{{ current_user.displayName }}{% endif %}" required>
+                                <label for="submitterName" class="form-label">Submitter Name <span class="text-danger">*</span> <small class="text-muted">(Auto-filled)</small></label>
+                                <input type="text" class="form-control bg-light" id="submitterName" name="submitterName" 
+                                       value="{{ user_name or '' }}" readonly>
                             </div>
                             <div class="col-md-4">
-                                <label for="submitterEmail" class="form-label">Submitter Email <span class="text-danger">*</span></label>
-                                <input type="email" class="form-control" id="submitterEmail" name="submitterEmail" 
-                                       value="{% if current_user %}{{ current_user.mail or current_user.userPrincipalName }}{% endif %}" required>
+                                <label for="submitterEmail" class="form-label">Submitter Email <span class="text-danger">*</span> <small class="text-muted">(Auto-filled)</small></label>
+                                <input type="email" class="form-control bg-light" id="submitterEmail" name="submitterEmail" 
+                                       value="{{ user_email or '' }}" readonly>
                             </div>
                             <div class="col-md-4">
                                 <label for="contractName" class="form-label">Contract Name <span class="text-danger">*</span></label>
