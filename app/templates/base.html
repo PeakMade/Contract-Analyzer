@@ -149,20 +149,31 @@
         /* User info styling */
         .user-info {
             position: absolute;
-            top: 100%;
+            top: 15px;
             right: 20px;
-            margin-top: 10px;
-            background: white;
-            padding: 10px 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            padding: 8px 15px;
+            border-radius: 25px;
             font-size: 0.9rem;
-            color: #333;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         
         .user-info .user-name {
             font-weight: 600;
-            color: #1a73e8;
+            color: white;
+        }
+        
+        .user-info a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .user-info a:hover {
+            color: white;
         }
         
         /* File upload styling */
@@ -214,7 +225,7 @@
 </head>
 <body>
     <!-- Standard PeakMade Header -->
-        <header style="background: linear-gradient(90deg, #ffb6b6 0%, #1f51ff 50%, #90eeff 100%); box-shadow: 0 2px 10px rgba(0,0,0,0.05); height: 80px; padding: 0; margin-bottom: 0;">
+        <header style="background: linear-gradient(90deg, #ffb6b6 0%, #1f51ff 50%, #90eeff 100%); box-shadow: 0 2px 10px rgba(0,0,0,0.05); height: 80px; padding: 0; margin-bottom: 0; position: relative;">
         <div style="display: flex; align-items: center; justify-content: space-between; max-width: 100%; margin: 0 auto; padding: 0 40px;">
             <!-- Left Logo (PeakMade) -->
             <div style="flex: 1; display: flex; justify-content: flex-start; align-items: center; height: 80px;">
@@ -230,11 +241,11 @@
             </div>
         </div>
         
-        <!-- User Info (positioned below header) -->
+        <!-- User Info (positioned in top right corner of header) -->
         {% if is_authenticated %}
         <div class="user-info">
             <i class="fas fa-user me-2"></i>
-            <span class="user-name">{{ current_user.displayName or current_user.mail or current_user.userPrincipalName }}</span>
+            <span class="user-name">{{ user_name or user_email }}</span>
             <a href="{{ url_for('auth.logout') }}" class="ms-3 text-decoration-none">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </a>

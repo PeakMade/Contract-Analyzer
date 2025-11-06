@@ -5,114 +5,53 @@
     <!-- Dashboard Header -->
     <div class="row mb-4">
         <div class="col-lg-8">
-            <h2><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h2>
-            <p class="text-muted">Manage and analyze your contracts</p>
+            <h2><i class="fas fa-tachometer-alt me-2"></i>Contract Dashboard</h2>
+            <p class="text-muted">View and manage all contract submissions</p>
         </div>
         <div class="col-lg-4 text-end">
-            <button class="btn btn-primary" onclick="uploadContract()">
-                <i class="fas fa-plus me-2"></i>Upload New Contract
-            </button>
+            <a href="/" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Submit New Contract
+            </a>
         </div>
     </div>
     
-    <!-- Quick Actions -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <i class="fas fa-upload me-2"></i>Quick Upload
-                </div>
-                <div class="card-body">
-                    <div class="file-upload-area" onclick="uploadContract()">
-                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                        <h5>Drop files here or click to upload</h5>
-                        <p class="text-muted">Supports PDF, DOCX files up to 10MB</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <i class="fas fa-chart-bar me-2"></i>Quick Stats
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-6">
-                            <h4 class="text-primary">0</h4>
-                            <small>Total Contracts</small>
-                        </div>
-                        <div class="col-6">
-                            <h4 class="text-success">0</h4>
-                            <small>Analyzed Today</small>
-                        </div>
-                    </div>
-                    <hr>
-                    <div class="row text-center">
-                        <div class="col-6">
-                            <h4 class="text-warning">0</h4>
-                            <small>High Risk</small>
-                        </div>
-                        <div class="col-6">
-                            <h4 class="text-info">0</h4>
-                            <small>Pending</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Recent Contracts -->
+    <!-- Contracts Table -->
     <div class="card">
-        <div class="card-header">
-            <i class="fas fa-file-contract me-2"></i>Recent Contracts
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-file-contract me-2"></i>All Contract Submissions</span>
+            <button class="btn btn-sm btn-primary" onclick="loadDashboardData()">
+                <i class="fas fa-sync me-1"></i>Refresh Data
+            </button>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
+                            <th>Contract ID</th>
                             <th>Contract Name</th>
-                            <th>Upload Date</th>
+                            <th>Submitter</th>
+                            <th>Submitter Email</th>
+                            <th>Business Approver</th>
+                            <th>Date Submitted</th>
+                            <th>Date Requested</th>
                             <th>Status</th>
-                            <th>Risk Level</th>
+                            <th>Business Terms</th>
+                            <th>Additional Notes</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="contractsTableBody">
                         <tr>
-                            <td colspan="5" class="text-center text-muted py-4">
-                                <i class="fas fa-inbox fa-2x mb-2"></i>
-                                <br>No contracts uploaded yet. <a href="#" onclick="uploadContract()">Upload your first contract</a>
+                            <td colspan="11" class="text-center text-muted py-4">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <br><br>Loading contracts from SharePoint...
                             </td>
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Analysis Summary -->
-    <div class="row mt-4">
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header">
-                    <i class="fas fa-chart-pie me-2"></i>Risk Distribution
-                </div>
-                <div class="card-body text-center">
-                    <p class="text-muted">No data available yet</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header">
-                    <i class="fas fa-timeline me-2"></i>Recent Activity
-                </div>
-                <div class="card-body">
-                    <p class="text-muted">No recent activity</p>
-                </div>
             </div>
         </div>
     </div>
@@ -121,85 +60,121 @@
 
 {% block extra_js %}
 <script>
-function uploadContract() {
-    // Create a file input element
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.pdf,.docx,.doc';
-    fileInput.style.display = 'none';
-    
-    fileInput.onchange = function(e) {
-        if (e.target.files.length > 0) {
-            const file = e.target.files[0];
-            
-            // Show loading state
-            const uploadArea = document.querySelector('.file-upload-area');
-            if (uploadArea) {
-                uploadArea.innerHTML = `
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Uploading...</span>
-                    </div>
-                    <h5 class="mt-3">Uploading ${file.name}...</h5>
-                    <p class="text-muted">Please wait while we process your contract</p>
-                `;
+// Load dashboard data
+function loadDashboardData() {
+    fetch('/api/contracts')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const contracts = data.contracts;
+                
+                // Update statistics
+                document.getElementById('totalContracts').textContent = contracts.length;
+                
+                // Count contracts by status
+                const today = new Date().toISOString().split('T')[0];
+                const analyzedToday = contracts.filter(c => c.date_submitted === today).length;
+                const pending = contracts.filter(c => c.status === 'Submitted' || c.status === 'Pending').length;
+                const highRisk = contracts.filter(c => c.status === 'High Risk').length;
+                
+                document.getElementById('analyzedToday').textContent = analyzedToday;
+                document.getElementById('pending').textContent = pending;
+                document.getElementById('highRisk').textContent = highRisk;
+                
+                // Update contracts table
+                updateContractsTable(contracts);
+            } else {
+                console.error('Failed to load contracts:', data.error);
+                showNoContracts();
             }
-            
-            // Simulate upload process (replace with actual upload logic later)
-            setTimeout(() => {
-                alert('File upload functionality will be implemented with authentication and SharePoint integration.');
-                location.reload();
-            }, 2000);
-        }
-    };
-    
-    document.body.appendChild(fileInput);
-    fileInput.click();
-    document.body.removeChild(fileInput);
+        })
+        .catch(error => {
+            console.error('Error loading contracts:', error);
+            showNoContracts();
+        });
 }
 
-// Drag and drop functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const uploadArea = document.querySelector('.file-upload-area');
+function updateContractsTable(contracts) {
+    const tableBody = document.getElementById('contractsTableBody');
     
-    if (uploadArea) {
-        uploadArea.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            this.classList.add('dragover');
-        });
-        
-        uploadArea.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            this.classList.remove('dragover');
-        });
-        
-        uploadArea.addEventListener('drop', function(e) {
-            e.preventDefault();
-            this.classList.remove('dragover');
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                // Trigger the upload process
-                const file = files[0];
-                if (file.type === 'application/pdf' || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
-                    // Show loading and process file
-                    this.innerHTML = `
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Processing...</span>
-                        </div>
-                        <h5 class="mt-3">Processing ${file.name}...</h5>
-                        <p class="text-muted">Analyzing contract content</p>
-                    `;
-                    
-                    setTimeout(() => {
-                        alert('Drag and drop upload functionality will be implemented with full backend integration.');
-                        location.reload();
-                    }, 2000);
-                } else {
-                    alert('Please upload a PDF or Word document (.pdf, .docx, .doc)');
-                }
-            }
-        });
+    if (contracts.length === 0) {
+        showNoContracts();
+        return;
     }
+    
+    let html = '';
+    contracts.forEach(contract => {
+        const statusBadge = getStatusBadge(contract.status);
+        const businessTerms = contract.business_terms || 'None specified';
+        
+        html += `
+            <tr>
+                <td><strong>${contract.contract_id}</strong></td>
+                <td>${contract.name}</td>
+                <td>
+                    <div>${contract.submitter_name}</div>
+                    <small class="text-muted">${contract.submitter_email}</small>
+                </td>
+                <td>${contract.date_submitted}</td>
+                <td>${statusBadge}</td>
+                <td><small>${businessTerms}</small></td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <a href="${contract.document_url}" target="_blank" class="btn btn-outline-primary btn-sm" title="View Document">
+                            <i class="fas fa-file-alt"></i>
+                        </a>
+                        <button class="btn btn-outline-info btn-sm" onclick="viewDetails('${contract.id}')" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tableBody.innerHTML = html;
+}
+
+function getStatusBadge(status) {
+    const statusColors = {
+        'Submitted': 'badge bg-primary',
+        'Pending': 'badge bg-warning',
+        'Approved': 'badge bg-success',
+        'High Risk': 'badge bg-danger',
+        'Under Review': 'badge bg-info'
+    };
+    
+    const badgeClass = statusColors[status] || 'badge bg-secondary';
+    return `<span class="${badgeClass}">${status}</span>`;
+}
+
+function showNoContracts() {
+    const tableBody = document.getElementById('contractsTableBody');
+    tableBody.innerHTML = `
+        <tr>
+            <td colspan="7" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2"></i>
+                <br>No contracts uploaded yet. <a href="/" class="text-decoration-none">Upload your first contract</a>
+            </td>
+        </tr>
+    `;
+}
+
+function viewDetails(contractId) {
+    alert(`Contract details view for ID: ${contractId} - This will be implemented with a modal or detail page.`);
+}
+
+function uploadContract() {
+    // Redirect to main page for contract upload
+    window.location.href = '/';
+}
+
+// Load data when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+    
+    // Refresh data every 30 seconds
+    setInterval(loadDashboardData, 30000);
 });
 </script>
 {% endblock %}

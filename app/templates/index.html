@@ -20,120 +20,130 @@
     <div class="tab-content" id="mainTabsContent">
         <!-- Submit a Contract Tab -->
         <div class="tab-pane fade show active" id="submit-contract" role="tabpanel" aria-labelledby="submit-tab">
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <div class="card">
-                        <div class="card-header">
-                            <i class="fas fa-file-contract me-2"></i>Contract Upload & Analysis
+            <div class="row">
+                <div class="col-12">
+                    <!-- Contract Submission Form -->
+                    <form id="contractForm" method="POST" action="/submit-contract" enctype="multipart/form-data">
+                        <div class="row mb-3">
+                            <!-- Left Column -->
+                            <div class="col-md-4">
+                                <label for="submitterName" class="form-label">Submitter Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="submitterName" name="submitterName" 
+                                       value="{% if current_user %}{{ current_user.displayName }}{% endif %}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="submitterEmail" class="form-label">Submitter Email <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="submitterEmail" name="submitterEmail" 
+                                       value="{% if current_user %}{{ current_user.mail or current_user.userPrincipalName }}{% endif %}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="contractName" class="form-label">Contract Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="contractName" name="contractName" 
+                                       placeholder="Enter contract name" required>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <!-- Upload Area -->
-                            <div class="file-upload-area mb-4" onclick="uploadContract()">
-                                <i class="fas fa-cloud-upload-alt fa-4x text-primary mb-3"></i>
-                                <h4>Drop your contract here or click to upload</h4>
-                                <p class="text-muted mb-3">Supports PDF, DOCX files up to 10MB</p>
-                                <div class="btn btn-primary">
-                                    <i class="fas fa-plus me-2"></i>Choose File
+
+                        <div class="row mb-4">
+                            <!-- File Upload Section -->
+                            <div class="col-md-4">
+                                <label for="contractFile" class="form-label">Upload Contract (DOCX) <span class="text-danger">*</span></label>
+                                <div class="file-upload-area p-3 text-center border rounded" onclick="document.getElementById('contractFile').click()">
+                                    <i class="fas fa-file-upload fa-2x text-muted mb-2"></i>
+                                    <p class="mb-2 small"><strong>Drag & drop or click to select</strong></p>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm">SELECT FILES</button>
+                                    <input type="file" class="d-none" id="contractFile" name="contractFile" 
+                                           accept=".docx,.doc" required>
+                                    <div id="fileName" class="mt-2 text-success small"></div>
                                 </div>
                             </div>
                             
-                            <!-- Upload Instructions -->
-                            <div class="row">
-                                <div class="col-md-4 text-center">
-                                    <div class="mb-3">
-                                        <i class="fas fa-file-upload fa-2x text-primary mb-2"></i>
-                                        <h6>1. Upload Contract</h6>
-                                        <small class="text-muted">Select PDF or DOCX file</small>
+                            <!-- Business Terms Section -->
+                            <div class="col-md-8">
+                                <div class="border rounded p-3" style="border-color: #17a2b8 !important;">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="businessApproverEmail" class="form-label">Business Approver Email <span class="text-danger">*</span></label>
+                                            <input type="email" class="form-control" id="businessApproverEmail" name="businessApproverEmail" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="dateRequested" class="form-label">Date Requested <span class="text-danger">*</span></label>
+                                            <input type="date" class="form-control" id="dateRequested" name="dateRequested" required>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-4 text-center">
-                                    <div class="mb-3">
-                                        <i class="fas fa-brain fa-2x text-success mb-2"></i>
-                                        <h6>2. AI Analysis</h6>
-                                        <small class="text-muted">Automated review & insights</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-4 text-center">
-                                    <div class="mb-3">
-                                        <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
-                                        <h6>3. View Results</h6>
-                                        <small class="text-muted">Risk assessment & recommendations</small>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Business Terms <i class="fas fa-info-circle text-info"></i></label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="compensation" name="businessTerms" value="compensation">
+                                                <label class="form-check-label" for="compensation">Compensation</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="scopeOfServices" name="businessTerms" value="scope_of_services">
+                                                <label class="form-check-label" for="scopeOfServices">Scope of Services</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="termDuration" name="businessTerms" value="term_duration">
+                                                <label class="form-check-label" for="termDuration">Term (duration)</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="additionalNotes" class="form-label">Additional Notes</label>
+                                            <textarea class="form-control" id="additionalNotes" name="additionalNotes" rows="4" 
+                                                      placeholder="Enter any additional notes or special requirements..."></textarea>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+
+                        <div class="row">
+                            <div class="col-12 text-center">
+                                <button type="submit" class="btn btn-secondary btn-lg px-5">
+                                    <i class="fas fa-paper-plane me-2"></i>SUBMIT FOR REVIEW
+                                </button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
 
         <!-- View Dashboard Tab -->
         <div class="tab-pane fade" id="view-dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
-            <!-- Quick Stats -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <i class="fas fa-file-alt fa-2x text-primary mb-2"></i>
-                            <h5 class="card-title">0</h5>
-                            <p class="card-text">Total Contracts</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                            <h5 class="card-title">0</h5>
-                            <p class="card-text">Analyzed</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
-                            <h5 class="card-title">0</h5>
-                            <p class="card-text">High Risk</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <i class="fas fa-clock fa-2x text-info mb-2"></i>
-                            <h5 class="card-title">0</h5>
-                            <p class="card-text">Pending Review</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Contracts -->
+            <!-- Contracts Table -->
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-file-contract me-2"></i>Recent Contracts</span>
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-primary">
-                        <i class="fas fa-external-link-alt me-1"></i>Full Dashboard
-                    </a>
+                    <span><i class="fas fa-file-contract me-2"></i>Contract Submissions</span>
+                    <button class="btn btn-sm btn-primary" onclick="loadDashboardData()">
+                        <i class="fas fa-sync me-1"></i>Refresh
+                    </button>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
+                        <table class="table table-hover mb-0" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
+                            <thead style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
                                 <tr>
-                                    <th>Contract Name</th>
-                                    <th>Upload Date</th>
-                                    <th>Status</th>
-                                    <th>Risk Level</th>
-                                    <th>Actions</th>
+                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Contract Name</th>
+                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Submitter</th>
+                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Date Submitted</th>
+                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Date Requested</th>
+                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Additional Notes</th>
+                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Business Approver Email</th>
+                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Business Terms</th>
+                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Risk Assignee</th>
+                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Status</th>
+                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Estimated Review</th>
+                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="contractsTableBody" style="background: white;">
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">
-                                        <i class="fas fa-inbox fa-2x mb-2"></i>
-                                        <br>No contracts uploaded yet. Switch to "Submit a Contract" tab to get started.
+                                    <td colspan="11" class="text-center text-muted py-4">
+                                        <div class="spinner-border" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <br><br>Loading contracts from SharePoint...
                                     </td>
                                 </tr>
                             </tbody>
@@ -146,48 +156,124 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    .file-upload-area {
+        border: 2px dashed #ddd;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .file-upload-area:hover {
+        border-color: #007bff;
+        background-color: #e3f2fd;
+    }
+    
+    .file-upload-area.dragover {
+        border-color: #28a745;
+        background-color: #d4edda;
+    }
+    
+    .dashboard-card {
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 10px;
+        transition: transform 0.2s;
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .btn-outline-secondary {
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: #5a6268;
+        color: white;
+    }
+    
+    .btn-success {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: none;
+        font-weight: 600;
+        padding: 12px 24px;
+    }
+    
+    .btn-success:hover {
+        background: linear-gradient(135deg, #218838, #1c7c6d);
+    }
+    
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d, #545b62);
+        border: none;
+        font-weight: 600;
+        padding: 12px 24px;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: linear-gradient(135deg, #5a6268, #495057);
+        color: white;
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
-function uploadContract() {
-    // Create a file input element
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.pdf,.docx,.doc';
-    fileInput.style.display = 'none';
-    
-    fileInput.onchange = function(e) {
-        if (e.target.files.length > 0) {
-            const file = e.target.files[0];
-            
-            // Show loading state
-            const uploadArea = document.querySelector('.file-upload-area');
-            if (uploadArea) {
-                uploadArea.innerHTML = `
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Uploading...</span>
-                    </div>
-                    <h5 class="mt-3">Uploading ${file.name}...</h5>
-                    <p class="text-muted">Please wait while we process your contract</p>
-                `;
-            }
-            
-            // Simulate upload process (replace with actual upload logic later)
-            setTimeout(() => {
-                alert('File upload functionality will be implemented with authentication and SharePoint integration.');
-                location.reload();
-            }, 2000);
-        }
-    };
-    
-    document.body.appendChild(fileInput);
-    fileInput.click();
-    document.body.removeChild(fileInput);
-}
-
-// Drag and drop functionality
+// File upload functionality
 document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('contractFile');
+    const fileNameDiv = document.getElementById('fileName');
     const uploadArea = document.querySelector('.file-upload-area');
     
+    // File input change handler
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+                    fileNameDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${file.name} selected`;
+                    fileNameDiv.className = 'mt-2 text-success small';
+                } else {
+                    fileNameDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Please select a DOCX document';
+                    fileNameDiv.className = 'mt-2 text-danger small';
+                    fileInput.value = '';
+                }
+            }
+        });
+    }
+    
+    // Drag and drop functionality
     if (uploadArea) {
         uploadArea.addEventListener('dragover', function(e) {
             e.preventDefault();
@@ -206,24 +292,203 @@ document.addEventListener('DOMContentLoaded', function() {
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 const file = files[0];
-                if (file.type === 'application/pdf' || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
-                    // Show loading and process file
-                    this.innerHTML = `
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Processing...</span>
-                        </div>
-                        <h5 class="mt-3">Processing ${file.name}...</h5>
-                        <p class="text-muted">Analyzing contract content</p>
-                    `;
-                    
-                    setTimeout(() => {
-                        alert('Drag and drop upload functionality will be implemented with full backend integration.');
-                        location.reload();
-                    }, 2000);
+                if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+                    fileInput.files = files;
+                    fileNameDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${file.name} selected`;
+                    fileNameDiv.className = 'mt-2 text-success small';
                 } else {
-                    alert('Please upload a PDF or Word document (.pdf, .docx, .doc)');
+                    fileNameDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Please upload a DOCX document';
+                    fileNameDiv.className = 'mt-2 text-danger small';
                 }
             }
+        });
+    }
+    
+    // Form submission handler
+    const contractForm = document.getElementById('contractForm');
+    if (contractForm) {
+        contractForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Validate form
+            const requiredFields = contractForm.querySelectorAll('[required]');
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    field.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    field.classList.remove('is-invalid');
+                }
+            });
+            
+            if (!isValid) {
+                alert('Please fill in all required fields.');
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = contractForm.querySelector('button[type="submit"]');
+            const originalHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading to SharePoint...';
+            submitBtn.disabled = true;
+            
+            // Create FormData for file upload
+            const formData = new FormData(contractForm);
+            
+            // Submit to SharePoint
+            fetch('/submit-contract', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`Success! ${data.message}\n\nFile uploaded to SharePoint: ${data.file_url}`);
+                    contractForm.reset();
+                    fileNameDiv.innerHTML = '';
+                    
+                    // Redirect if specified
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    }
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while uploading the contract. Please try again.');
+            })
+            .finally(() => {
+                submitBtn.innerHTML = originalHtml;
+                submitBtn.disabled = false;
+            });
+        });
+    }
+    
+    // Set default date to today and restrict to current date and forward
+    const dateField = document.getElementById('dateRequested');
+    if (dateField) {
+        const today = new Date().toISOString().split('T')[0];
+        dateField.min = today; // Restrict to current date and forward
+        if (!dateField.value) {
+            dateField.value = today; // Set default to today
+        }
+    }
+});
+
+// Dashboard functions
+function loadDashboardData() {
+    fetch('/api/contracts')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const contracts = data.contracts;
+                updateContractsTable(contracts);
+            } else {
+                console.error('Failed to load contracts:', data.error);
+                showNoContracts();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading contracts:', error);
+            showNoContracts();
+        });
+}
+
+function updateContractsTable(contracts) {
+    const tableBody = document.getElementById('contractsTableBody');
+    
+    if (contracts.length === 0) {
+        showNoContracts();
+        return;
+    }
+    
+    let html = '';
+    contracts.forEach(contract => {
+        const statusBadge = getStatusBadge(contract.status);
+        const businessTerms = contract.business_terms || '';
+        const additionalNotes = contract.additional_notes || '';
+        const riskAssignee = contract.risk_assignee || '';
+        const estimatedReview = contract.estimated_review || '';
+        
+        // Make contract name clickable if it has a document URL
+        const contractName = contract.document_url ? 
+            `<a href="${contract.document_url}" target="_blank" style="color: #007bff; text-decoration: none;">${contract.name}</a>` : 
+            contract.name;
+        
+        html += `
+            <tr style="background: white; color: #333;">
+                <td style="border-color: #dee2e6;">${contractName}</td>
+                <td style="border-color: #dee2e6;">${contract.submitter_name}</td>
+                <td style="border-color: #dee2e6;">${contract.date_submitted}</td>
+                <td style="border-color: #dee2e6;">${contract.date_requested}</td>
+                <td style="border-color: #dee2e6;"><small>${additionalNotes}</small></td>
+                <td style="border-color: #dee2e6;">${contract.business_approver_email}</td>
+                <td style="border-color: #dee2e6;"><small>${businessTerms}</small></td>
+                <td style="border-color: #dee2e6;">${riskAssignee}</td>
+                <td style="border-color: #dee2e6;">${statusBadge}</td>
+                <td style="border-color: #dee2e6;">${estimatedReview}</td>
+                <td style="border-color: #dee2e6;">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-dark btn-sm" onclick="viewResults('${contract.id}')" title="View Results">
+                            <i class="fas fa-chart-bar me-1"></i>RESULTS
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="uploadDocument('${contract.id}')" title="Upload Document">
+                            <i class="fas fa-upload me-1"></i>UPLOAD
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tableBody.innerHTML = html;
+}
+
+function getStatusBadge(status) {
+    const statusColors = {
+        'ANALYZED': 'badge bg-secondary text-white',
+        'Submitted': 'badge bg-primary',
+        'Pending': 'badge bg-warning text-dark',
+        'Approved': 'badge bg-success',
+        'High Risk': 'badge bg-danger',
+        'Under Review': 'badge bg-info',
+        'Rejected': 'badge bg-secondary'
+    };
+    
+    const badgeClass = statusColors[status] || 'badge bg-secondary';
+    return `<span class="${badgeClass}">${status}</span>`;
+}
+
+function showNoContracts() {
+    const tableBody = document.getElementById('contractsTableBody');
+    tableBody.innerHTML = `
+        <tr style="background: white;">
+            <td colspan="11" class="text-center text-muted py-4" style="border-color: #dee2e6;">
+                <i class="fas fa-inbox fa-2x mb-2"></i>
+                <br>No contracts uploaded yet. Switch to "Submit a Contract" tab to get started.
+            </td>
+        </tr>
+    `;
+}
+
+function viewResults(contractId) {
+    alert(`View results for contract ID: ${contractId} - This will show analysis results.`);
+}
+
+function uploadDocument(contractId) {
+    alert(`Upload document for contract ID: ${contractId} - This will allow document uploads.`);
+}
+
+// Load dashboard data when switching to dashboard tab
+document.addEventListener('DOMContentLoaded', function() {
+    const dashboardTab = document.getElementById('dashboard-tab');
+    if (dashboardTab) {
+        dashboardTab.addEventListener('shown.bs.tab', function() {
+            loadDashboardData();
         });
     }
 });
