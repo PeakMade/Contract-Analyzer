@@ -2,11 +2,16 @@ from flask import Flask, render_template, session, request, jsonify, flash, redi
 import os
 from dotenv import load_dotenv
 
+print("\n=== DEBUG APP INITIALIZATION ===")
+
 # Load environment variables
 load_dotenv()
+print(f"DEBUG: .env file loaded")
 
 app = Flask(__name__, static_folder='app/static', template_folder='app/templates')
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key')
+print(f"DEBUG: Flask app created")
+print(f"DEBUG: SECRET_KEY set: {bool(app.secret_key)}")
 
 # Configure session to handle large data
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
@@ -21,8 +26,25 @@ app.config['AUTHORITY'] = f"https://login.microsoftonline.com/{app.config['TENAN
 app.config['SCOPE'] = ["User.Read"]  # Start with basic scope
 app.config['REDIRECT_URI'] = os.getenv('REDIRECT_URI', 'http://localhost:5000/auth/redirect')
 
+print(f"DEBUG: CLIENT_ID: {app.config['CLIENT_ID'][:10] + '...' if app.config['CLIENT_ID'] else 'None'}")
+print(f"DEBUG: CLIENT_SECRET: {'SET' if app.config['CLIENT_SECRET'] else 'None'}")
+print(f"DEBUG: TENANT_ID: {app.config['TENANT_ID'][:10] + '...' if app.config['TENANT_ID'] else 'None'}")
+print(f"DEBUG: REDIRECT_URI: {app.config['REDIRECT_URI']}")
+
+# SharePoint Configuration
+app.config['SP_SITE_URL'] = os.getenv('SP_SITE_URL')
+app.config['SP_CLIENT_ID'] = os.getenv('SP_CLIENT_ID')
+app.config['SP_CLIENT_SECRET'] = os.getenv('SP_CLIENT_SECRET')
+app.config['SP_ADMIN_LIST_ID'] = os.getenv('SP_ADMIN_LIST_ID')
+app.config['SP_ADMIN_EMAIL_COLUMN'] = os.getenv('SP_ADMIN_EMAIL_COLUMN', 'Email')
+app.config['SP_ADMIN_ACTIVE_COLUMN'] = os.getenv('SP_ADMIN_ACTIVE_COLUMN', 'Active')
+
+print(f"DEBUG: SP_SITE_URL: {app.config['SP_SITE_URL']}")
+print(f"DEBUG: SP_ADMIN_LIST_ID: {app.config['SP_ADMIN_LIST_ID'][:10] + '...' if app.config['SP_ADMIN_LIST_ID'] else 'None'}")
+
 # Import authentication utilities
 from app.utils.auth_utils import login_required
+from app.utils.admin_utils import admin_required
 
 # Register auth blueprint
 from app.routes.auth_routes import auth_bp
@@ -35,12 +57,14 @@ def inject_auth():
     return {
         'user_name': session.get('user_name'),
         'user_email': session.get('user_email'),
-        'is_authenticated': bool(session.get('access_token'))
+        'is_authenticated': bool(session.get('access_token')),
+        'is_admin': session.get('is_admin', False)
     }
 
 @app.route('/')
 @login_required
 def index():
+    print(f"\n=== DEBUG index() route called ===")
     return render_template('index.html')
 
 @app.route('/submit-contract', methods=['POST'])
@@ -143,8 +167,19 @@ def get_contracts():
     try:
         from app.services.sharepoint_service import sharepoint_service
         
-        # Get contracts from SharePoint list
-        contracts = sharepoint_service.get_contract_files()
+        # Get user info from session
+        user_email = session.get('user_email')
+        is_admin = session.get('is_admin', False)
+        
+        print(f"\n=== DEBUG /api/contracts ===")
+        print(f"User: {user_email}")
+        print(f"Is Admin: {is_admin}")
+        
+        # Get contracts from SharePoint list (filtered by user if not admin)
+        contracts = sharepoint_service.get_contract_files(
+            user_email=user_email,
+            is_admin=is_admin
+        )
         
         return jsonify({
             'success': True,
@@ -154,12 +189,21 @@ def get_contracts():
         
     except Exception as e:
         print(f"Error getting contracts: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
     return render_template('dashboard.html')
+
+@app.route('/admin')
+@admin_required
+def admin_panel():
+    """Admin-only route - requires user to be in SharePoint admin list"""
+    print(f"\n=== DEBUG admin_panel() route called ===")
+    return render_template('admin.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
