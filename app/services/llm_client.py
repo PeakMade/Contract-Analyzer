@@ -38,7 +38,21 @@ def _get_client() -> OpenAI:
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable not set")
-        client = OpenAI(api_key=api_key)
+        
+        # Debug logging for API key configuration
+        print(f"DEBUG llm_client: Initializing OpenAI client")
+        print(f"DEBUG llm_client: API key present: {bool(api_key)}")
+        print(f"DEBUG llm_client: API key length: {len(api_key) if api_key else 0}")
+        print(f"DEBUG llm_client: API key prefix: {api_key[:20] if api_key else 'N/A'}...")
+        
+        try:
+            client = OpenAI(api_key=api_key)
+            print(f"DEBUG llm_client: OpenAI client created successfully")
+            logger.info("OpenAI client initialized successfully")
+        except Exception as e:
+            print(f"DEBUG llm_client: Failed to create OpenAI client: {type(e).__name__} - {str(e)}")
+            logger.error(f"Failed to create OpenAI client: {type(e).__name__} - {str(e)}")
+            raise
     return client
 
 
@@ -132,8 +146,22 @@ def _call_openai(system_prompt: str, user_prompt: str, model: str) -> str:
         logger.error("OpenAI API request timed out")
         raise RuntimeError("AI analysis request timed out")
     except Exception as e:
-        logger.error(f"OpenAI API call failed: {type(e).__name__}")
-        raise RuntimeError("AI analysis service temporarily unavailable")
+        # Enhanced error logging for debugging
+        import traceback
+        error_type = type(e).__name__
+        error_msg = str(e)
+        stack_trace = traceback.format_exc()
+        
+        logger.error(f"OpenAI API call failed: {error_type}")
+        logger.error(f"Error message: {error_msg}")
+        logger.error(f"Stack trace:\n{stack_trace}")
+        
+        print(f"DEBUG llm_client: OpenAI API Error Details:")
+        print(f"  Type: {error_type}")
+        print(f"  Message: {error_msg}")
+        print(f"  Full trace:\n{stack_trace}")
+        
+        raise RuntimeError(f"AI analysis service error: {error_type} - {error_msg}")
 
 
 def analyze_standard(text: str, standard: str) -> dict:
