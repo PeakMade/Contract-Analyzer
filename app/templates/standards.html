@@ -7,13 +7,161 @@
     <h1 style="text-align:center; color: #495057; margin-bottom:15px; font-size:2rem; letter-spacing:1px;">
       {{ contract_name }}
     </h1>
-    <a href="{{ url_for('dashboard') }}"
+    <a href="{{ url_for('index') }}"
       style="position: absolute; top: 0; right: 0; background: #6c757d; color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: 500;">
       Return to Dashboard
     </a>
   </div>
 
-  <!-- Standards selection form -->
+  <!-- Flash Messages Banner -->
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+      <div style="margin: 20px 0;">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" style="padding: 12px 20px; margin-bottom: 10px; border-radius: 6px; 
+               {% if category == 'success' %}background: #d4edda; color: #155724; border: 1px solid #c3e6cb;
+               {% elif category == 'error' %}background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;
+               {% elif category == 'warning' %}background: #fff3cd; color: #856404; border: 1px solid #ffeaa7;
+               {% else %}background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb;{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% if analysis_completed and summary %}
+  <!-- Analysis Results Section -->
+  <div class="analysis-results" style="margin: 30px 0;">
+    <!-- Summary Counts Banner -->
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+      <h3 style="margin: 0 0 10px 0; font-weight: 600;">Analysis Complete</h3>
+      <div style="display: flex; gap: 30px; font-size: 1.1rem;">
+        {% set present_count = summary | selectattr('present', 'equalto', true) | list | length %}
+        {% set missing_count = summary | rejectattr('present', 'equalto', true) | list | length %}
+        <div>
+          <strong>{{ present_count }}</strong> of <strong>{{ summary | length }}</strong> standards found
+        </div>
+        <div>
+          <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px;">
+            ✓ {{ present_count }} Present
+          </span>
+          <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; margin-left: 10px;">
+            ✗ {{ missing_count }} Missing
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Table -->
+    <form method="POST" action="{{ url_for('apply_suggestions_action', contract_id=contract_id) }}" id="applySuggestionsForm">
+      <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <button type="button" id="applyAllBtn" class="btn-action" 
+                  style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 500; cursor: pointer; margin-right: 10px;">
+            Apply All Missing
+          </button>
+          <button type="submit" id="applySelectedBtn" class="btn-action" 
+                  style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 500; cursor: pointer;" 
+                  disabled>
+            Apply Selected (<span id="selectedCount">0</span>)
+          </button>
+        </div>
+        <span id="selectionStatus" style="color: #6c757d; font-size: 0.9rem;">Select standards to apply suggestions</span>
+      </div>
+
+      <div style="overflow-x: auto; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <table style="width: 100%; border-collapse: collapse; background: white;">
+          <thead>
+            <tr style="background: linear-gradient(135deg, #495057 0%, #343a40 100%); color: white;">
+              <th style="padding: 15px; text-align: center; font-weight: 600; width: 60px;">Apply</th>
+              <th style="padding: 15px; text-align: left; font-weight: 600; width: 20%;">Standard</th>
+              <th style="padding: 15px; text-align: center; font-weight: 600; width: 10%;">Present</th>
+              <th style="padding: 15px; text-align: left; font-weight: 600; width: 30%;">Excerpt / Location</th>
+              <th style="padding: 15px; text-align: left; font-weight: 600; width: 40%;">Suggestion</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in summary %}
+            <tr style="border-bottom: 1px solid #dee2e6; {% if not item.present %}background: #fff3cd;{% endif %}">
+              <!-- Apply Checkbox -->
+              <td style="padding: 15px; text-align: center;">
+                {% if not item.present %}
+                  <input type="checkbox" name="apply_standards" value="{{ item.standard }}" class="apply-checkbox"
+                         style="transform: scale(1.3); cursor: pointer;">
+                {% else %}
+                  <span style="color: #6c757d;">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Standard Name -->
+              <td style="padding: 15px;">
+                <strong style="color: #495057;">{{ item.standard }}</strong>
+                {% if item.source == 'sharepoint' %}
+                  <br><small style="color: #6c757d;"><i class="bi bi-building"></i> SharePoint Gold</small>
+                {% elif item.source == 'ai' %}
+                  <br><small style="color: #6c757d;"><i class="bi bi-robot"></i> AI Generated</small>
+                {% endif %}
+              </td>
+
+              <!-- Present Status -->
+              <td style="padding: 15px; text-align: center;">
+                {% if item.present %}
+                  <span style="background: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
+                    ✓ Yes
+                  </span>
+                {% else %}
+                  <span style="background: #ffc107; color: #000; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
+                    ✗ No
+                  </span>
+                {% endif %}
+              </td>
+
+              <!-- Excerpt / Location -->
+              <td style="padding: 15px; font-size: 0.9rem;">
+                {% if item.present %}
+                  {% if item.excerpt and item.excerpt != 'N/A' %}
+                    <div style="margin-bottom: 8px;">
+                      <strong>Excerpt:</strong><br>
+                      <em style="color: #495057;">"{{ item.excerpt[:150] }}{% if item.excerpt|length > 150 %}...{% endif %}"</em>
+                    </div>
+                  {% endif %}
+                  {% if item.location and item.location != 'N/A' %}
+                    <div style="color: #6c757d;">
+                      <strong>Location:</strong> {{ item.location }}
+                    </div>
+                  {% endif %}
+                {% else %}
+                  <span style="color: #856404; font-style: italic;">Not found in contract</span>
+                {% endif %}
+              </td>
+
+              <!-- Suggestion -->
+              <td style="padding: 15px; font-size: 0.9rem;">
+                {% if item.suggestion and item.suggestion != 'N/A' %}
+                  <div style="color: #495057; line-height: 1.5;">
+                    {{ item.suggestion[:200] }}{% if item.suggestion|length > 200 %}...{% endif %}
+                  </div>
+                  {% if item.suggestion|length > 200 %}
+                    <button type="button" class="view-full-btn" data-standard="{{ item.standard }}" data-suggestion="{{ item.suggestion }}"
+                            style="background: #007bff; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; margin-top: 8px; cursor: pointer;">
+                      View Full Text
+                    </button>
+                  {% endif %}
+                {% else %}
+                  <span style="color: #6c757d; font-style: italic;">No suggestion available</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+  </div>
+
+  {% else %}
+  <!-- Standards selection form (shown when analysis not completed) -->
   <div class="analysis-prep">
     <form method="post" action="{{ url_for('analyze_contract', contract_id=contract_id) }}" style="margin: 20px 0;">
       
@@ -88,9 +236,99 @@
 
     </form>
   </div>
+
+  {% endif %}
+  {# End of analysis_completed conditional #}
 </div>
 
 <script>
+{% if analysis_completed and summary %}
+// Analysis Results JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+  const checkboxes = document.querySelectorAll('.apply-checkbox');
+  const applyAllBtn = document.getElementById('applyAllBtn');
+  const applySelectedBtn = document.getElementById('applySelectedBtn');
+  const selectedCountSpan = document.getElementById('selectedCount');
+  const selectionStatus = document.getElementById('selectionStatus');
+
+  function updateSelectionUI() {
+    const checkedCount = document.querySelectorAll('.apply-checkbox:checked').length;
+    selectedCountSpan.textContent = checkedCount;
+    applySelectedBtn.disabled = checkedCount === 0;
+    
+    if (checkedCount > 0) {
+      selectionStatus.textContent = `${checkedCount} standard${checkedCount !== 1 ? 's' : ''} selected for application`;
+      selectionStatus.style.color = '#28a745';
+    } else {
+      selectionStatus.textContent = 'Select standards to apply suggestions';
+      selectionStatus.style.color = '#6c757d';
+    }
+  }
+
+  // Apply All button
+  applyAllBtn.addEventListener('click', function() {
+    checkboxes.forEach(cb => cb.checked = true);
+    updateSelectionUI();
+  });
+
+  // Checkbox change
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', updateSelectionUI);
+  });
+
+  // View Full Text buttons
+  document.querySelectorAll('.view-full-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const standard = this.dataset.standard;
+      const suggestion = this.dataset.suggestion;
+      
+      // Create modal
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
+      
+      const modalContent = document.createElement('div');
+      modalContent.style.cssText = 'background: white; padding: 30px; border-radius: 8px; max-width: 800px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);';
+      modalContent.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #dee2e6; padding-bottom: 15px;">
+          <h3 style="margin: 0; color: #495057;">${standard}</h3>
+          <button type="button" class="close-modal" style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 600;">Close</button>
+        </div>
+        <div style="white-space: pre-wrap; line-height: 1.6; color: #495057;">${suggestion}</div>
+      `;
+      
+      modal.appendChild(modalContent);
+      document.body.appendChild(modal);
+      
+      // Close handlers
+      modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+      });
+    });
+  });
+
+  // Form submission confirmation
+  document.getElementById('applySuggestionsForm').addEventListener('submit', function(e) {
+    const checkedCount = document.querySelectorAll('.apply-checkbox:checked').length;
+    if (checkedCount === 0) {
+      e.preventDefault();
+      alert('Please select at least one standard to apply.');
+      return false;
+    }
+    
+    if (!confirm(`Apply ${checkedCount} selected suggestion${checkedCount !== 1 ? 's' : ''} to this contract?`)) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // Initial UI update
+  updateSelectionUI();
+});
+{% else %}
+// Standards Selection JavaScript (original functionality)
+{% endif %}
+
 // Global functions for Select All / Deselect All
 function selectAllStandards() {
   console.log('Selecting all standards');

@@ -40,10 +40,10 @@ def login():
         session["oauth_state"] = state
         print(f"DEBUG: Generated OAuth state token")
         
-        # Create auth URL
+        # Create auth URL with all required scopes for file access
         msal_app = get_msal_app()
         auth_url = msal_app.get_authorization_request_url(
-            scopes=["User.Read"],
+            scopes=["User.Read", "Files.ReadWrite.All", "Sites.ReadWrite.All"],
             redirect_uri=current_app.config['REDIRECT_URI'],
             state=state,
             prompt="select_account"
@@ -104,11 +104,11 @@ def redirect_handler():
             return redirect('/')
         
         print(f"DEBUG: Exchanging code for token")
-        # Exchange code for token
+        # Exchange code for token with all required scopes
         msal_app = get_msal_app()
         result = msal_app.acquire_token_by_authorization_code(
             code,
-            scopes=["User.Read"],
+            scopes=["User.Read", "Files.ReadWrite.All", "Sites.ReadWrite.All"],
             redirect_uri=current_app.config['REDIRECT_URI']
         )
         
@@ -151,6 +151,14 @@ def redirect_handler():
         print(f"DEBUG: Setting session data")
         # Store minimal user information in session
         session['access_token'] = result['access_token']
+        
+        # Store token expiration in UTC to avoid timezone issues
+        from datetime import datetime, timedelta
+        expires_in = result.get('expires_in', 3600)  # Default 1 hour
+        token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+        session['token_expires_at'] = token_expires_at.isoformat()
+        print(f"DEBUG: Token expires at: {token_expires_at} UTC (in {expires_in} seconds)")
+        
         session['user_name'] = user_info.get('displayName', email.split('@')[0])
         session['user_email'] = email
         

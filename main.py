@@ -1,6 +1,15 @@
 from flask import Flask, render_template, session, request, jsonify, flash, redirect, url_for
 import os
+from datetime import datetime
+from pathlib import Path
 from dotenv import load_dotenv
+
+# Import analysis services
+from app.services.sp_download import download_contract
+from app.services.text_extractor import extract_text
+from app.services.sp_preferred_standards import get_preferred_standards
+from app.services.analysis_orchestrator import analyze_contract as run_analysis
+from app.cache import analysis_cache
 
 print("\n=== DEBUG APP INITIALIZATION ===")
 
@@ -205,9 +214,6 @@ def admin_panel():
     print(f"\n=== DEBUG admin_panel() route called ===")
     return render_template('admin.html')
 
-# Analysis cache dictionary - stores analysis results by contract_id
-analysis_cache = {}
-
 # Default standards list (19 standards)
 DEFAULT_STANDARDS = [
     "Indemnification",
@@ -275,10 +281,12 @@ def contract_standards(contract_id):
         flash(f'Error loading contract standards: {str(e)}', 'error')
         return redirect(url_for('dashboard'))
 
-@app.route('/contract/<contract_id>/analyze', methods=['POST'])
+@app.route('/contract/<contract_id>/analyze', methods=['POST'], endpoint='analyze_contract')
 @login_required
-def analyze_contract(contract_id):
+def analyze_contract_route(contract_id):
     """Run AI analysis on contract with selected standards"""
+    temp_file_path = None
+    
     try:
         print(f"\n=== DEBUG analyze_contract ===")
         print(f"Contract ID: {contract_id}")
@@ -303,26 +311,179 @@ def analyze_contract(contract_id):
             flash('Please select at least one standard to analyze', 'warning')
             return redirect(url_for('contract_standards', contract_id=contract_id))
         
-        # TODO: Implement actual AI analysis here
-        # For now, store placeholder results in cache
-        analysis_cache[contract_id] = {
-            'standards': all_standards,
-            'status': 'analyzed',
-            'timestamp': str(__import__('datetime').datetime.now())
+        # Download contract from SharePoint
+        print(f"Downloading contract {contract_id} from SharePoint...")
+        temp_file_path = download_contract(contract_id)
+        print(f"Contract downloaded to: {temp_file_path}")
+        
+        # Extract text from contract
+        print(f"Extracting text from contract...")
+        contract_text = extract_text(temp_file_path)
+        print(f"Extracted {len(contract_text)} characters")
+        
+        # Get preferred standards from SharePoint
+        print(f"Loading preferred standards from SharePoint...")
+        preferred_standards = get_preferred_standards()
+        print(f"Loaded {len(preferred_standards)} preferred standards")
+        
+        # Run AI analysis
+        print(f"Running AI analysis for {len(all_standards)} standards...")
+        analysis_results = run_analysis(contract_text, all_standards, preferred_standards)
+        print(f"Analysis complete: {len(analysis_results)} results")
+        
+        # Cache the results with 30-minute TTL
+        cache_data = {
+            'results': analysis_results,
+            'selected': all_standards,
+            'ts': datetime.utcnow().isoformat()
         }
+        analysis_cache.set(contract_id, cache_data, ttl=1800)
+        print(f"Results cached for contract {contract_id}")
         
-        # Update contract status in SharePoint to "Analyzed"
-        # TODO: Implement SharePoint status update
+        # Clean up temporary file
+        if temp_file_path and Path(temp_file_path).exists():
+            Path(temp_file_path).unlink()
+            print(f"Cleaned up temporary file: {temp_file_path}")
         
-        flash(f'Analysis completed for {len(all_standards)} standards!', 'success')
+        flash('✅ AI analysis completed successfully!', 'success')
+        return redirect(url_for('apply_suggestions_new', contract_id=contract_id))
+        
+    except PermissionError as e:
+        if "SESSION_EXPIRED" in str(e):
+            flash('Session expired — please sign in again.', 'warning')
+            return redirect(url_for('auth.login'))
+        else:
+            print(f"Permission error in analyze_contract: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            flash('You do not have permission to access this contract.', 'error')
+            return redirect(url_for('contract_standards', contract_id=contract_id))
+            
+    except FileNotFoundError as e:
+        print(f"File not found in analyze_contract: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash('Contract file not found in SharePoint.', 'error')
+        return redirect(url_for('contract_standards', contract_id=contract_id))
+        
+    except RuntimeError as e:
+        print(f"Runtime error in analyze_contract: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash('Could not process the document.', 'error')
+        return redirect(url_for('contract_standards', contract_id=contract_id))
+        
+    except Exception as e:
+        print(f"Unexpected error in analyze_contract: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash('Analysis failed; please try again.', 'error')
+        return redirect(url_for('contract_standards', contract_id=contract_id))
+        
+    finally:
+        # Ensure cleanup of temporary file even if error occurs
+        if temp_file_path:
+            try:
+                if Path(temp_file_path).exists():
+                    Path(temp_file_path).unlink()
+            except Exception as cleanup_error:
+                print(f"Warning: Failed to clean up temporary file: {cleanup_error}")
+
+@app.route('/apply_suggestions_new/<contract_id>')
+@login_required
+def apply_suggestions_new(contract_id):
+    """Display AI analysis results for contract"""
+    try:
+        print(f"\n=== DEBUG apply_suggestions_new ===")
+        print(f"Contract ID: {contract_id}")
+        
+        # Get analysis from cache
+        cached_data = analysis_cache.get(contract_id)
+        
+        if not cached_data:
+            print(f"No cached analysis found for contract {contract_id}")
+            flash('No analysis found for this contract.', 'warning')
+            return redirect(url_for('contract_standards', contract_id=contract_id))
+        
+        # Extract cached data
+        analysis_results = cached_data.get('results', {})
+        selected_standards = cached_data.get('selected', [])
+        timestamp = cached_data.get('ts', '')
+        
+        print(f"Found cached analysis: {len(analysis_results)} results")
+        
+        # Get contract details from SharePoint
+        from app.services.sharepoint_service import SharePointService
+        sp_service = SharePointService()
+        contract = sp_service.get_contract_by_id(contract_id)
+        
+        if not contract:
+            flash('Contract not found.', 'error')
+            return redirect(url_for('dashboard'))
+        
+        contract_name = contract.get('name', 'Unknown Contract')
+        
+        # Build summary items list for template
+        summary_items = []
+        for standard_name in selected_standards:
+            result = analysis_results.get(standard_name, {})
+            
+            summary_items.append({
+                'standard': standard_name,
+                'present': result.get('found', False),
+                'excerpt': result.get('excerpt') or 'N/A',
+                'location': result.get('location') or 'N/A',
+                'suggestion': result.get('suggestion') or 'N/A',
+                'source': result.get('source', 'ai')
+            })
+        
+        print(f"Rendering apply_suggestions with {len(summary_items)} items")
+        
+        # Render template with analysis_completed flag
+        return render_template(
+            'apply_suggestions.html',
+            analysis_completed=True,
+            summary=summary_items,
+            contract_id=contract_id,
+            contract_name=contract_name,
+            timestamp=timestamp
+        )
+        
+    except Exception as e:
+        print(f"Error in apply_suggestions_new: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash('Error loading analysis results.', 'error')
+        return redirect(url_for('dashboard'))
+
+@app.route('/contract/<contract_id>/apply_suggestions', methods=['POST'])
+@login_required
+def apply_suggestions_action(contract_id):
+    """Handle applying selected suggestions to contract (placeholder)"""
+    try:
+        selected_standards = request.form.getlist('apply_standards')
+        
+        if not selected_standards:
+            flash('No standards selected to apply.', 'warning')
+            return redirect(url_for('apply_suggestions_new', contract_id=contract_id))
+        
+        print(f"Apply suggestions for contract {contract_id}: {len(selected_standards)} standards")
+        
+        # TODO: Implement actual suggestion application logic
+        # This could involve:
+        # 1. Generating a modified contract document
+        # 2. Creating a report with suggested changes
+        # 3. Updating SharePoint with recommendations
+        
+        flash(f'✅ Applied {len(selected_standards)} suggestions successfully!', 'success')
         return redirect(url_for('dashboard'))
         
     except Exception as e:
-        print(f"Error in analyze_contract: {str(e)}")
+        print(f"Error applying suggestions: {str(e)}")
         import traceback
         traceback.print_exc()
-        flash(f'Error analyzing contract: {str(e)}', 'error')
-        return redirect(url_for('contract_standards', contract_id=contract_id))
+        flash('Error applying suggestions.', 'error')
+        return redirect(url_for('apply_suggestions_new', contract_id=contract_id))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -49,13 +49,14 @@ class SharePointService:
             result = app.acquire_token_for_client(scopes=scopes)
             
             if "access_token" in result:
-                # Store token and expiration time
+                # Store token and expiration time in UTC
                 self.access_token = result["access_token"]
                 # Token expires in 'expires_in' seconds (usually 3599 = ~1 hour)
                 expires_in = result.get("expires_in", 3599)
-                self.token_expires_at = datetime.now() + timedelta(seconds=expires_in - 300)  # Refresh 5 min early
+                # Use UTC time to match Microsoft's token expiration
+                self.token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in - 300)  # Refresh 5 min early
                 
-                print(f"Token acquired, expires at: {self.token_expires_at}")
+                print(f"Token acquired, expires at: {self.token_expires_at} UTC")
                 return result["access_token"]
             else:
                 raise Exception(f"Failed to get access token: {result}")
@@ -65,18 +66,18 @@ class SharePointService:
             raise
     
     def _ensure_valid_token(self):
-        """Check if token is valid and refresh if needed"""
+        """Check if token is valid and refresh if needed (using UTC time)"""
         from datetime import datetime
         
-        # If token doesn't exist or is expired, get a new one
-        if self.token_expires_at is None or datetime.now() >= self.token_expires_at:
+        # If token doesn't exist or is expired, get a new one (compare in UTC)
+        if self.token_expires_at is None or datetime.utcnow() >= self.token_expires_at:
             print("Token expired or missing, refreshing...")
             self.access_token = self._get_access_token()
             # Site ID might also need refresh after token refresh
             if self.site_id is None:
                 self.site_id = self._get_site_id()
         else:
-            time_left = (self.token_expires_at - datetime.now()).total_seconds() / 60
+            time_left = (self.token_expires_at - datetime.utcnow()).total_seconds() / 60
             print(f"Token still valid, {time_left:.1f} minutes remaining")
     
     def _get_site_id(self):
@@ -429,6 +430,90 @@ class SharePointService:
             import traceback
             traceback.print_exc()
             return []
+    
+    def get_contract_by_id(self, contract_id):
+        """
+        Retrieve a single contract by its ContractID field value.
+        
+        Args:
+            contract_id (str): The ContractID field value (e.g., 'CAAE5D84')
+            
+        Returns:
+            dict: Contract information with 'fields' key containing SharePoint fields,
+                  or None if not found
+        """
+        try:
+            # Ensure token is valid before making API calls
+            self._ensure_valid_token()
+            
+            uploaded_contracts_list_id = os.getenv('SP_LIST_ID')
+            
+            if not uploaded_contracts_list_id:
+                print("SP_LIST_ID not found in environment variables")
+                return None
+            
+            print(f"\n=== DEBUG get_contract_by_id ===")
+            print(f"Contract ID: {contract_id}")
+            
+            headers = {
+                'Authorization': f'Bearer {self.access_token}',
+                'Prefer': 'HonorNonIndexedQueriesWarningMayFailRandomly'
+            }
+            
+            # Query SharePoint list filtering by ContractID field
+            # Use $filter to find the specific contract
+            # Note: ContractID is not indexed, so we need the Prefer header
+            items_url = f"{self.graph_url}/sites/{self.site_id}/lists/{uploaded_contracts_list_id}/items"
+            params = {
+                '$expand': 'fields',
+                '$filter': f"fields/ContractID eq '{contract_id}'"
+            }
+            
+            response = requests.get(items_url, headers=headers, params=params)
+            
+            print(f"SharePoint API response: {response.status_code}")
+            
+            if response.status_code == 200:
+                items_data = response.json()
+                items = items_data.get('value', [])
+                
+                if items:
+                    # Return the first matching item (should be unique)
+                    item = items[0]
+                    fields = item.get('fields', {})
+                    
+                    # Return structured contract info
+                    contract = {
+                        'id': item['id'],
+                        'contract_id': fields.get('ContractID', contract_id),
+                        'name': fields.get('Title', 'Unknown'),
+                        'submitter_name': fields.get('SubmitterName', 'Unknown'),
+                        'submitter_email': fields.get('SubmitterEmail', ''),
+                        'business_approver_email': fields.get('BusinessApproverEmail', ''),
+                        'date_submitted': fields.get('DateSubmitted', ''),
+                        'date_requested': fields.get('DateRequested', ''),
+                        'status': fields.get('Status', 'SUBMITTED'),
+                        'business_terms': fields.get('BusinessTerms', ''),
+                        'additional_notes': fields.get('AdditionalNotes', ''),
+                        'document_url': fields.get('Document_x0020_Link', ''),
+                        'file_name': fields.get('filename', 'Unknown'),
+                        'fields': fields  # Include raw fields for download service
+                    }
+                    
+                    print(f"Contract found: {contract['name']}")
+                    return contract
+                else:
+                    print(f"No contract found with ContractID: {contract_id}")
+                    return None
+            else:
+                print(f"Error retrieving contract: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            print(f"Error retrieving contract by ID: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
 
 # Initialize SharePoint service instance
 sharepoint_service = SharePointService()
