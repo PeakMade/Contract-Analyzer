@@ -105,27 +105,36 @@ function updateContractsTable(contracts) {
     let html = '';
     contracts.forEach(contract => {
         const statusBadge = getStatusBadge(contract.status);
-        const businessTerms = contract.business_terms || 'None specified';
+        const businessTerms = Array.isArray(contract.business_terms) ? contract.business_terms.join(', ') : (contract.business_terms || 'None');
+        const additionalNotes = contract.additional_notes || 'None';
         
         html += `
             <tr>
                 <td><strong>${contract.contract_id}</strong></td>
-                <td>${contract.name}</td>
                 <td>
-                    <div>${contract.submitter_name}</div>
-                    <small class="text-muted">${contract.submitter_email}</small>
+                    <a href="/contract/${contract.contract_id}/standards" 
+                       class="contract-name-link" 
+                       data-contract-id="${contract.contract_id}"
+                       onclick="event.preventDefault(); window.location.href='/contract/${contract.contract_id}/standards'; return false;"
+                       style="color: #495057; text-decoration: none; font-weight: 500; transition: color 0.2s ease; cursor: pointer;"
+                       onmouseover="this.style.color='var(--peakmade-magenta)'; this.style.textDecoration='underline'"
+                       onmouseout="this.style.color='#495057'; this.style.textDecoration='none'">
+                        ${contract.name}
+                    </a>
                 </td>
+                <td>${contract.submitter_name}</td>
+                <td><small class="text-muted">${contract.submitter_email}</small></td>
+                <td><small class="text-muted">${contract.business_approver_email}</small></td>
                 <td>${contract.date_submitted}</td>
+                <td>${contract.date_requested}</td>
                 <td>${statusBadge}</td>
                 <td><small>${businessTerms}</small></td>
+                <td><small>${additionalNotes}</small></td>
                 <td>
                     <div class="btn-group btn-group-sm">
                         <a href="${contract.document_url}" target="_blank" class="btn btn-outline-primary btn-sm" title="View Document">
                             <i class="fas fa-file-alt"></i>
                         </a>
-                        <button class="btn btn-outline-info btn-sm" onclick="viewDetails('${contract.id}')" title="View Details">
-                            <i class="fas fa-eye"></i>
-                        </button>
                     </div>
                 </td>
             </tr>
@@ -138,6 +147,7 @@ function updateContractsTable(contracts) {
 function getStatusBadge(status) {
     const statusColors = {
         'Submitted': 'badge bg-primary',
+        'Analyzed': 'badge bg-success',
         'Pending': 'badge bg-warning',
         'Approved': 'badge bg-success',
         'High Risk': 'badge bg-danger',

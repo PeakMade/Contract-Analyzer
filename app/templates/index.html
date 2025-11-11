@@ -414,9 +414,9 @@ function updateContractsTable(contracts) {
         const riskAssignee = contract.risk_assignee || '';
         const estimatedReview = contract.estimated_review || '';
         
-        // Make contract name clickable if it has a document URL
-        const contractName = contract.document_url ? 
-            `<a href="${contract.document_url}" target="_blank" style="color: #007bff; text-decoration: none;">${contract.name}</a>` : 
+        // Make contract name clickable - link to standards page
+        const contractName = contract.contract_id ? 
+            `<a href="/contract/${contract.contract_id}/standards" style="color: #007bff; text-decoration: none; font-weight: 500;">${contract.name}</a>` : 
             contract.name;
         
         html += `

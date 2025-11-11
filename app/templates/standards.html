@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}Contract Standards - {{ contract_name }}{% endblock %}
+
+{% block content %}
+<div class="card contract-portal">
+  <div style="position: relative;">
+    <h1 style="text-align:center; color: #495057; margin-bottom:15px; font-size:2rem; letter-spacing:1px;">
+      {{ contract_name }}
+    </h1>
+    <a href="{{ url_for('dashboard') }}"
+      style="position: absolute; top: 0; right: 0; background: #6c757d; color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: 500;">
+      Return to Dashboard
+    </a>
+  </div>
+
+  <!-- Standards selection form -->
+  <div class="analysis-prep">
+    <form method="post" action="{{ url_for('analyze_contract', contract_id=contract_id) }}" style="margin: 20px 0;">
+      
+      <!-- Default Standards Selection -->
+      <div class="standards-selection" style="margin: 30px 0;">
+        <h3 style="color: #495057; margin-bottom: 15px; font-weight: 600;">
+          Default Standards
+          <button type="button" onclick="selectAllStandards()" class="select-all-btn-immediate"
+            style="margin-left: 15px !important; padding: 5px 12px !important; background: var(--peakmade-magenta) !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 0.8rem !important; cursor: pointer !important; font-weight: 600 !important; text-transform: uppercase !important;">
+            SELECT ALL
+          </button>
+          <button type="button" onclick="deselectAllStandards()" class="deselect-all-btn-immediate"
+            style="margin-left: 8px !important; padding: 5px 12px !important; background: #6c757d !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 0.8rem !important; cursor: pointer !important; font-weight: 600 !important; text-transform: uppercase !important;">
+            DESELECT ALL
+          </button>
+        </h3>
+
+        <!-- Main container with standards grid and custom standards side by side -->
+        <div style="display: flex; gap: 30px; align-items: flex-start;" class="standards-layout-container">
+
+          <!-- Left side: Standards Grid (4 columns x 5 rows) -->
+          <div class="standards-container"
+            style="flex: 2; border: 2px solid #e9ecef; border-radius: 12px; padding: 20px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div class="standards-grid"
+              style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+              {% for standard in default_standards %}
+              <label
+                style="display: flex; align-items: center; justify-content: flex-start; padding: 12px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 50px;">
+                <input type="checkbox" name="standards" value="{{ standard }}" checked
+                  style="margin-right: 10px; transform: scale(1.1);">
+                <span style="font-weight: 500; color: #495057; font-size: 0.9rem;">{{ standard }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Right side: Custom Standards Section -->
+          <div class="custom-standards-section"
+            style="flex: 1; min-width: 280px; border: 2px solid #e9ecef; border-radius: 12px; padding: 20px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <h4
+              style="color: #495057; margin-bottom: 15px; font-weight: 600; font-size: 1.1rem; text-align: center; margin-top: 0;">
+              Add Custom Standards</h4>
+
+            <!-- Custom standards input -->
+            <input type="text" id="custom-standard-input" placeholder="Enter a custom standard..."
+              style="width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; font-family: inherit; box-sizing: border-box; background: white;"
+              onfocus="this.style.borderColor='#495057'" onblur="this.style.borderColor='#e0e0e0'">
+
+            <!-- Add Standard button -->
+            <button type="button" id="add-custom-standard"
+              style="width: 140px; background: #495057; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: 500; cursor: pointer; font-size: 0.8rem; box-sizing: border-box; transition: all 0.2s ease;">
+              Add Standard
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Centered Run AI Analysis Button -->
+      <div style="margin: 40px 0; text-align: center;">
+        <button type="submit" class="btn-primary" id="analyze-button"
+          style="display: inline-block; font-size: 0.8rem; padding: 6px 12px; background: var(--peakmade-magenta); border: none; color: white; border-radius: 4px; font-weight: 500; cursor: pointer;">
+          Run AI Analysis
+        </button>
+        <p id="analyze-description" style="margin-top: 12px; color: #6c757d; font-size: 0.9rem; font-style: italic;">
+          This may take 20-30 seconds depending on the contract length and number of standards selected.
+        </p>
+      </div>
+
+      <!-- Hidden textarea for custom standards -->
+      <textarea name="custom_standards" id="custom-standards-hidden" style="display: none;"></textarea>
+
+    </form>
+  </div>
+</div>
+
+<script>
+// Global functions for Select All / Deselect All
+function selectAllStandards() {
+  console.log('Selecting all standards');
+  const allCheckboxes = document.querySelectorAll('input[name="standards"]');
+  allCheckboxes.forEach(cb => cb.checked = true);
+}
+
+function deselectAllStandards() {
+  console.log('Deselecting all standards');
+  const allCheckboxes = document.querySelectorAll('input[name="standards"]');
+  allCheckboxes.forEach(cb => cb.checked = false);
+}
+
+// Custom standard functionality
+function addCustomStandard() {
+  console.log('Adding custom standard');
+  const input = document.getElementById('custom-standard-input');
+  const standardText = input.value.trim();
+
+  if (!standardText) {
+    alert('Please enter a standard before adding.');
+    return;
+  }
+
+  // Check if standard already exists
+  const existingCheckboxes = document.querySelectorAll('input[name="standards"]');
+  const exists = Array.from(existingCheckboxes).some(cb => cb.value.toLowerCase() === standardText.toLowerCase());
+  if (exists) {
+    alert('This standard already exists in the list.');
+    return;
+  }
+
+  // Add to grid
+  const standardsGrid = document.querySelector('.standards-grid');
+  const newLabel = document.createElement('label');
+  newLabel.className = 'custom-standard';
+  newLabel.style.cssText = 'display: flex; align-items: center; padding: 12px; background: #e8f5e8; border-radius: 8px; border-left: 4px solid #28a745; cursor: pointer;';
+  newLabel.innerHTML = `
+    <input type="checkbox" name="standards" value="${standardText}" checked 
+           style="margin-right: 10px; transform: scale(1.2);">
+    <span style="font-weight: 500;">${standardText}</span>
+    <span style="background: #28a745; color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.7rem; margin-left: auto;">CUSTOM</span>
+    <button type="button" class="remove-custom-standard" title="Remove this custom standard"
+            style="background: #dc3545; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; margin-left: 8px; cursor: pointer;">×</button>
+  `;
+
+  standardsGrid.appendChild(newLabel);
+
+  // Add remove button event
+  const removeBtn = newLabel.querySelector('.remove-custom-standard');
+  removeBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (confirm('Remove this custom standard?')) {
+      newLabel.remove();
+      updateCustomStandardsHidden();
+    }
+  });
+
+  // Clear input
+  input.value = '';
+  updateCustomStandardsHidden();
+
+  // Show success message
+  const msg = document.createElement('div');
+  msg.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1000; background: #28a745; color: white; padding: 12px 20px; border-radius: 8px;';
+  msg.textContent = `✅ "${standardText}" added!`;
+  document.body.appendChild(msg);
+  setTimeout(() => msg.remove(), 3000);
+}
+
+function updateCustomStandardsHidden() {
+  const hiddenTextarea = document.getElementById('custom-standards-hidden');
+  const customCheckboxes = document.querySelectorAll('.custom-standard input[name="standards"]');
+  const customStandards = Array.from(customCheckboxes).map(cb => cb.value);
+  hiddenTextarea.value = customStandards.join(', ');
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+  const addButton = document.getElementById('add-custom-standard');
+  const customInput = document.getElementById('custom-standard-input');
+
+  if (addButton) {
+    addButton.addEventListener('click', addCustomStandard);
+  }
+
+  if (customInput) {
+    customInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addCustomStandard();
+      }
+    });
+  }
+});
+</script>
+
+<style>
+/* Standards selection styling */
+.standards-selection label:hover {
+  background: #e9ecef !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+  border-color: #495057 !important;
+}
+
+.standards-selection input[type="checkbox"]:checked + span {
+  color: #495057;
+  font-weight: 700;
+}
+
+/* Custom standards specific styling */
+.standards-grid label.custom-standard {
+  background: #e8f5e8 !important;
+  border-left-color: #28a745 !important;
+}
+
+.standards-grid label.custom-standard:hover {
+  background: #d4f4d4 !important;
+}
+
+.btn-primary:hover {
+  background: #c6045a !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.3) !important;
+  transition: all 0.3s ease;
+}
+
+#add-custom-standard:hover {
+  background: #343a40 !important;
+  transform: translateY(-1px);
+}
+
+.remove-custom-standard:hover {
+  background: #c82333 !important;
+  transform: scale(1.1);
+}
+
+/* Responsive layout */
+@media (max-width: 1200px) {
+  .standards-layout-container {
+    flex-direction: column !important;
+  }
+  
+  .standards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .standards-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+</style>
+{% endblock %}

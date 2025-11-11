@@ -205,5 +205,124 @@ def admin_panel():
     print(f"\n=== DEBUG admin_panel() route called ===")
     return render_template('admin.html')
 
+# Analysis cache dictionary - stores analysis results by contract_id
+analysis_cache = {}
+
+# Default standards list (19 standards)
+DEFAULT_STANDARDS = [
+    "Indemnification",
+    "Limitation of Liability",
+    "Term and Termination",
+    "Confidentiality",
+    "Intellectual Property",
+    "Warranties",
+    "Payment Terms",
+    "Dispute Resolution",
+    "Governing Law",
+    "Force Majeure",
+    "Assignment",
+    "Notices",
+    "Entire Agreement",
+    "Severability",
+    "Waiver",
+    "Insurance Requirements",
+    "Compliance with Laws",
+    "Data Protection",
+    "Audit Rights"
+]
+
+@app.route('/contract/<contract_id>/standards')
+@login_required
+def contract_standards(contract_id):
+    """Display standards selection page for a specific contract"""
+    try:
+        from app.services.sharepoint_service import sharepoint_service
+        
+        print(f"\n=== DEBUG contract_standards ===")
+        print(f"Contract ID: {contract_id}")
+        
+        # Get user info
+        user_email = session.get('user_email')
+        is_admin = session.get('is_admin', False)
+        
+        # Get all contracts to find this specific one
+        contracts = sharepoint_service.get_contract_files(
+            user_email=user_email,
+            is_admin=is_admin
+        )
+        
+        # Find the specific contract
+        contract = next((c for c in contracts if c['contract_id'] == contract_id), None)
+        
+        if not contract:
+            flash('Contract not found', 'error')
+            return redirect(url_for('dashboard'))
+        
+        # Check if user has access to this contract (admins can access all)
+        if not is_admin and contract['submitter_email'].lower() != user_email.lower():
+            flash('You do not have access to this contract', 'error')
+            return redirect(url_for('dashboard'))
+        
+        return render_template('standards.html',
+                             contract_id=contract_id,
+                             contract_name=contract['name'],
+                             default_standards=DEFAULT_STANDARDS)
+        
+    except Exception as e:
+        print(f"Error in contract_standards: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error loading contract standards: {str(e)}', 'error')
+        return redirect(url_for('dashboard'))
+
+@app.route('/contract/<contract_id>/analyze', methods=['POST'])
+@login_required
+def analyze_contract(contract_id):
+    """Run AI analysis on contract with selected standards"""
+    try:
+        print(f"\n=== DEBUG analyze_contract ===")
+        print(f"Contract ID: {contract_id}")
+        
+        # Get selected standards from form
+        selected_standards = request.form.getlist('standards')
+        custom_standards_text = request.form.get('custom_standards', '').strip()
+        
+        # Parse custom standards
+        custom_standards = []
+        if custom_standards_text:
+            custom_standards = [s.strip() for s in custom_standards_text.split(',') if s.strip()]
+        
+        # Combine all standards
+        all_standards = selected_standards + custom_standards
+        
+        print(f"Selected standards: {len(selected_standards)}")
+        print(f"Custom standards: {len(custom_standards)}")
+        print(f"Total standards: {len(all_standards)}")
+        
+        if not all_standards:
+            flash('Please select at least one standard to analyze', 'warning')
+            return redirect(url_for('contract_standards', contract_id=contract_id))
+        
+        # TODO: Implement actual AI analysis here
+        # For now, store placeholder results in cache
+        analysis_cache[contract_id] = {
+            'standards': all_standards,
+            'status': 'analyzed',
+            'timestamp': str(__import__('datetime').datetime.now())
+        }
+        
+        # Update contract status in SharePoint to "Analyzed"
+        # TODO: Implement SharePoint status update
+        
+        flash(f'Analysis completed for {len(all_standards)} standards!', 'success')
+        return redirect(url_for('dashboard'))
+        
+    except Exception as e:
+        print(f"Error in analyze_contract: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error analyzing contract: {str(e)}', 'error')
+        return redirect(url_for('contract_standards', contract_id=contract_id))
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
