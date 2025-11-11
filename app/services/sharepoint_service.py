@@ -16,6 +16,10 @@ class SharePointService:
         self.site_id = None
         self.drive_id = os.getenv('DRIVE_ID')  # ContractFiles library drive ID
         
+        # Token management
+        self.access_token = None
+        self.token_expires_at = None  # Track when token expires
+        
         # Microsoft Graph API base URL
         self.graph_url = "https://graph.microsoft.com/v1.0"
         
@@ -31,6 +35,8 @@ class SharePointService:
     def _get_access_token(self):
         """Get access token using client credentials flow"""
         try:
+            from datetime import datetime, timedelta
+            
             authority = f"https://login.microsoftonline.com/{self.tenant_id}"
             app = msal.ConfidentialClientApplication(
                 self.client_id,
@@ -43,6 +49,13 @@ class SharePointService:
             result = app.acquire_token_for_client(scopes=scopes)
             
             if "access_token" in result:
+                # Store token and expiration time
+                self.access_token = result["access_token"]
+                # Token expires in 'expires_in' seconds (usually 3599 = ~1 hour)
+                expires_in = result.get("expires_in", 3599)
+                self.token_expires_at = datetime.now() + timedelta(seconds=expires_in - 300)  # Refresh 5 min early
+                
+                print(f"Token acquired, expires at: {self.token_expires_at}")
                 return result["access_token"]
             else:
                 raise Exception(f"Failed to get access token: {result}")
@@ -50,6 +63,21 @@ class SharePointService:
         except Exception as e:
             print(f"Error getting access token: {str(e)}")
             raise
+    
+    def _ensure_valid_token(self):
+        """Check if token is valid and refresh if needed"""
+        from datetime import datetime
+        
+        # If token doesn't exist or is expired, get a new one
+        if self.token_expires_at is None or datetime.now() >= self.token_expires_at:
+            print("Token expired or missing, refreshing...")
+            self.access_token = self._get_access_token()
+            # Site ID might also need refresh after token refresh
+            if self.site_id is None:
+                self.site_id = self._get_site_id()
+        else:
+            time_left = (self.token_expires_at - datetime.now()).total_seconds() / 60
+            print(f"Token still valid, {time_left:.1f} minutes remaining")
     
     def _get_site_id(self):
         """Get the SharePoint site ID"""
@@ -91,6 +119,9 @@ class SharePointService:
             dict: Upload result with success status and file URL
         """
         try:
+            # Ensure token is valid before making API calls
+            self._ensure_valid_token()
+            
             print(f"\n=== DEBUG upload_contract ===")
             print(f"Contract Name: {contract_name}")
             print(f"File Name: {file_name}")
@@ -184,6 +215,9 @@ class SharePointService:
                                 additional_notes, document_url, file_name):
         """Create a record in the 'Uploaded Contracts' SharePoint list"""
         try:
+            # Ensure token is valid before making API calls
+            self._ensure_valid_token()
+            
             print(f"\n=== DEBUG _create_contract_metadata ===")
             print(f"Contract Name: {contract_name}")
             print(f"Submitter: {submitter_name} ({submitter_email})")
@@ -322,6 +356,9 @@ class SharePointService:
             list: List of contract information from SharePoint list
         """
         try:
+            # Ensure token is valid before making API calls
+            self._ensure_valid_token()
+            
             # Use the specific list ID from environment variable
             uploaded_contracts_list_id = os.getenv('SP_LIST_ID')  # 916e17ce-131a-4866-91c5-46cd36433ed2
             

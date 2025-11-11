@@ -122,19 +122,18 @@
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
-                            <thead style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
+                            <thead style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
                                 <tr>
-                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Contract Name</th>
-                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Submitter</th>
-                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Date Submitted</th>
-                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Date Requested</th>
-                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Additional Notes</th>
-                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Business Approver Email</th>
-                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Business Terms</th>
-                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Risk Assignee</th>
-                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Status</th>
-                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Estimated Review</th>
-                                    <th style="border-color: #0c5460; color: white; font-weight: 600;">Actions</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Contract Name</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Submitter</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Submitter Email</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Business Approver</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Date Submitted</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Date Requested</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Status</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Business Terms</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Additional Notes</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="contractsTableBody" style="background: white;">
@@ -409,10 +408,8 @@ function updateContractsTable(contracts) {
     let html = '';
     contracts.forEach(contract => {
         const statusBadge = getStatusBadge(contract.status);
-        const businessTerms = contract.business_terms || '';
-        const additionalNotes = contract.additional_notes || '';
-        const riskAssignee = contract.risk_assignee || '';
-        const estimatedReview = contract.estimated_review || '';
+        const businessTerms = Array.isArray(contract.business_terms) ? contract.business_terms.join(', ') : (contract.business_terms || 'None');
+        const additionalNotes = contract.additional_notes || 'None';
         
         // Make contract name clickable - link to standards page
         const contractName = contract.contract_id ? 
@@ -423,22 +420,18 @@ function updateContractsTable(contracts) {
             <tr style="background: white; color: #333;">
                 <td style="border-color: #dee2e6;">${contractName}</td>
                 <td style="border-color: #dee2e6;">${contract.submitter_name}</td>
+                <td style="border-color: #dee2e6;"><small class="text-muted">${contract.submitter_email}</small></td>
+                <td style="border-color: #dee2e6;"><small class="text-muted">${contract.business_approver_email}</small></td>
                 <td style="border-color: #dee2e6;">${contract.date_submitted}</td>
                 <td style="border-color: #dee2e6;">${contract.date_requested}</td>
-                <td style="border-color: #dee2e6;"><small>${additionalNotes}</small></td>
-                <td style="border-color: #dee2e6;">${contract.business_approver_email}</td>
-                <td style="border-color: #dee2e6;"><small>${businessTerms}</small></td>
-                <td style="border-color: #dee2e6;">${riskAssignee}</td>
                 <td style="border-color: #dee2e6;">${statusBadge}</td>
-                <td style="border-color: #dee2e6;">${estimatedReview}</td>
+                <td style="border-color: #dee2e6;"><small>${businessTerms}</small></td>
+                <td style="border-color: #dee2e6;"><small>${additionalNotes}</small></td>
                 <td style="border-color: #dee2e6;">
                     <div class="btn-group btn-group-sm">
-                        <button class="btn btn-dark btn-sm" onclick="viewResults('${contract.id}')" title="View Results">
-                            <i class="fas fa-chart-bar me-1"></i>RESULTS
-                        </button>
-                        <button class="btn btn-primary btn-sm" onclick="uploadDocument('${contract.id}')" title="Upload Document">
-                            <i class="fas fa-upload me-1"></i>UPLOAD
-                        </button>
+                        <a href="${contract.document_url}" target="_blank" class="btn btn-outline-primary btn-sm" title="View Document">
+                            <i class="fas fa-file-alt"></i>
+                        </a>
                     </div>
                 </td>
             </tr>
@@ -467,7 +460,7 @@ function showNoContracts() {
     const tableBody = document.getElementById('contractsTableBody');
     tableBody.innerHTML = `
         <tr style="background: white;">
-            <td colspan="11" class="text-center text-muted py-4" style="border-color: #dee2e6;">
+            <td colspan="10" class="text-center text-muted py-4" style="border-color: #dee2e6;">
                 <i class="fas fa-inbox fa-2x mb-2"></i>
                 <br>No contracts uploaded yet. Switch to "Submit a Contract" tab to get started.
             </td>
