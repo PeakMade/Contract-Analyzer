@@ -52,8 +52,11 @@
                         <button type="button" id="selectAllBtn" class="btn btn-sm btn-light me-2">
                             Select All Missing
                         </button>
-                        <button type="button" id="deselectAllBtn" class="btn btn-sm btn-outline-light">
+                        <button type="button" id="deselectAllBtn" class="btn btn-sm btn-outline-light me-2">
                             Deselect All
+                        </button>
+                        <button type="submit" id="applySelectedBtn" class="btn btn-sm btn-success" disabled>
+                            <i class="bi bi-check-square"></i> Apply Selected
                         </button>
                     </div>
                 </div>
@@ -158,16 +161,9 @@
             </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <span id="selectedCount" class="text-muted">0 standards selected</span>
-            </div>
-            <div>
-                <button type="submit" id="applySelectedBtn" class="btn btn-primary" disabled>
-                    <i class="bi bi-check-square"></i> Apply Selected Suggestions
-                </button>
-            </div>
+        <!-- Selection Count -->
+        <div class="mb-4">
+            <span id="selectedCount" class="text-muted">0 standards selected</span>
         </div>
     </form>
     {% else %}
