@@ -73,7 +73,7 @@
                                     
                                     <div class="row">
                                         <div class="col-md-6">
-                                            <label class="form-label">Business Terms <i class="fas fa-info-circle text-info"></i></label>
+                                            <label class="form-label">Business Terms <span class="info-icon" data-tooltip="Check if business approver has reviewed and approved the items below">ℹ️</span></label>
                                             <div class="form-check">
                                                 <input class="form-check-input" type="checkbox" id="compensation" name="businessTerms" value="compensation">
                                                 <label class="form-check-label" for="compensation">Compensation</label>
@@ -130,7 +130,9 @@
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Business Approver</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Date Submitted</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Date Requested</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Est. Review Completion</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Status</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Risk Assignee</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Business Terms</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Additional Notes</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Actions</th>
@@ -138,7 +140,7 @@
                             </thead>
                             <tbody id="contractsTableBody" style="background: white;">
                                 <tr>
-                                    <td colspan="11" class="text-center text-muted py-4">
+                                    <td colspan="12" class="text-center text-muted py-4">
                                         <div class="spinner-border" role="status">
                                             <span class="visually-hidden">Loading...</span>
                                         </div>
@@ -197,6 +199,39 @@
         border-radius: 15px;
         padding: 20px;
         margin-bottom: 20px;
+    }
+    
+    .info-icon {
+        cursor: help;
+        position: relative;
+        margin-left: 5px;
+    }
+    
+    .info-icon:hover::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 120%;
+        background-color: #333;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        white-space: nowrap;
+        font-size: 12px;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .info-icon:hover::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 110%;
+        border: 6px solid transparent;
+        border-top-color: #333;
+        z-index: 1000;
     }
     
     .btn-outline-secondary {
@@ -379,7 +414,39 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Dashboard functions
+let riskAssigneeChoices = [];
+let statusChoices = [];
+
+function loadFieldChoices() {
+    // Load Risk Assignee choices
+    fetch('/api/field-choices/RiskAssignee')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.choices.length > 0) {
+                riskAssigneeChoices = data.choices;
+                console.log('Loaded Risk Assignee choices:', riskAssigneeChoices);
+            }
+        })
+        .catch(error => console.error('Error loading Risk Assignee choices:', error));
+    
+    // Load Status choices
+    fetch('/api/field-choices/Status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.choices.length > 0) {
+                statusChoices = data.choices;
+                console.log('Loaded Status choices:', statusChoices);
+            }
+        })
+        .catch(error => console.error('Error loading Status choices:', error));
+}
+
 function loadDashboardData() {
+    // Load field choices first if not already loaded
+    if (riskAssigneeChoices.length === 0 || statusChoices.length === 0) {
+        loadFieldChoices();
+    }
+    
     fetch('/api/contracts')
         .then(response => response.json())
         .then(data => {
@@ -395,6 +462,32 @@ function loadDashboardData() {
             console.error('Error loading contracts:', error);
             showNoContracts();
         });
+}
+
+function buildStatusDropdown(currentStatus, contractId) {
+    const choices = statusChoices.length > 0 ? statusChoices : 
+        ['Submitted', 'In Progress', 'Analyzed', 'Completed'];
+    
+    let options = '';
+    choices.forEach(choice => {
+        const selected = choice === currentStatus ? 'selected' : '';
+        options += `<option value="${choice}" ${selected}>${choice}</option>`;
+    });
+    
+    return `<select class="form-select form-select-sm status-select" data-contract-id="${contractId}" data-field="Status" style="min-width: 120px;">${options}</select>`;
+}
+
+function buildRiskAssigneeDropdown(currentAssignee, contractId) {
+    const choices = riskAssigneeChoices.length > 0 ? riskAssigneeChoices : 
+        ['Jamie Torkelson', 'Jennifer Hill', 'Madi Barnett'];
+    
+    let options = '<option value="">Not Assigned</option>';
+    choices.forEach(choice => {
+        const selected = choice === currentAssignee ? 'selected' : '';
+        options += `<option value="${choice}" ${selected}>${choice}</option>`;
+    });
+    
+    return `<select class="form-select form-select-sm risk-assignee-select" data-contract-id="${contractId}" data-field="RiskAssignee" style="min-width: 150px;">${options}</select>`;
 }
 
 function updateContractsTable(contracts) {
@@ -424,7 +517,15 @@ function updateContractsTable(contracts) {
                 <td style="border-color: #dee2e6;"><small class="text-muted">${contract.business_approver_email}</small></td>
                 <td style="border-color: #dee2e6;">${contract.date_submitted}</td>
                 <td style="border-color: #dee2e6;">${contract.date_requested}</td>
-                <td style="border-color: #dee2e6;">${statusBadge}</td>
+                <td style="border-color: #dee2e6;">
+                    <input type="date" class="form-control form-control-sm estimated-review-date" data-contract-id="${contract.id}" data-field="EstimatedReviewCompletion" value="${contract.estimated_review_completion || ''}" style="min-width: 140px;">
+                </td>
+                <td style="border-color: #dee2e6;">
+                    ${buildStatusDropdown(contract.status, contract.id)}
+                </td>
+                <td style="border-color: #dee2e6;">
+                    ${buildRiskAssigneeDropdown(contract.risk_assignee, contract.id)}
+                </td>
                 <td style="border-color: #dee2e6;"><small>${businessTerms}</small></td>
                 <td style="border-color: #dee2e6;"><small>${additionalNotes}</small></td>
                 <td style="border-color: #dee2e6;">
@@ -432,24 +533,28 @@ function updateContractsTable(contracts) {
                         <a href="${contract.document_url}" target="_blank" class="btn btn-outline-primary btn-sm" title="View Document">
                             <i class="fas fa-file-alt"></i>
                         </a>
+                        <button class="btn btn-outline-success btn-sm" onclick="triggerUploadCompleted('${contract.id}', '${contract.name}')" title="Upload Completed Document">
+                            <i class="fas fa-upload"></i>
+                        </button>
                     </div>
+                    <input type="file" id="upload-${contract.id}" accept=".docx,.doc" style="display: none;" onchange="uploadCompletedDocument('${contract.id}', '${contract.name}')">
                 </td>
             </tr>
         `;
     });
     
     tableBody.innerHTML = html;
+    
+    // Attach event listeners to the new dropdowns
+    attachFieldUpdateListeners();
 }
 
 function getStatusBadge(status) {
     const statusColors = {
-        'ANALYZED': 'badge bg-secondary text-white',
+        'Analyzed': 'badge bg-secondary text-white',
         'Submitted': 'badge bg-primary',
-        'Pending': 'badge bg-warning text-dark',
-        'Approved': 'badge bg-success',
-        'High Risk': 'badge bg-danger',
-        'Under Review': 'badge bg-info',
-        'Rejected': 'badge bg-secondary'
+        'In Progress': 'badge bg-warning text-dark',
+        'Completed': 'badge bg-success'
     };
     
     const badgeClass = statusColors[status] || 'badge bg-secondary';
@@ -460,7 +565,7 @@ function showNoContracts() {
     const tableBody = document.getElementById('contractsTableBody');
     tableBody.innerHTML = `
         <tr style="background: white;">
-            <td colspan="10" class="text-center text-muted py-4" style="border-color: #dee2e6;">
+            <td colspan="12" class="text-center text-muted py-4" style="border-color: #dee2e6;">
                 <i class="fas fa-inbox fa-2x mb-2"></i>
                 <br>No contracts uploaded yet. Switch to "Submit a Contract" tab to get started.
             </td>
@@ -474,6 +579,163 @@ function viewResults(contractId) {
 
 function uploadDocument(contractId) {
     alert(`Upload document for contract ID: ${contractId} - This will allow document uploads.`);
+}
+
+// Update contract field in SharePoint
+function updateContractField(contractId, field, value) {
+    const originalValue = event.target.dataset.originalValue;
+    
+    fetch('/api/update-contract-field', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            contract_id: contractId,
+            field: field,
+            value: value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log(`Successfully updated ${field} to ${value}`);
+            // Store the new value as original
+            event.target.dataset.originalValue = value;
+        } else {
+            alert(`Error updating ${field}: ${data.error}`);
+            // Revert to original value
+            event.target.value = originalValue;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert(`An error occurred while updating ${field}`);
+        // Revert to original value
+        event.target.value = originalValue;
+    });
+}
+
+// Add event listeners for dropdown changes
+function attachFieldUpdateListeners() {
+    // Status dropdowns
+    document.querySelectorAll('.status-select').forEach(select => {
+        select.dataset.originalValue = select.value;
+        select.addEventListener('change', function(e) {
+            const contractId = this.dataset.contractId;
+            const field = this.dataset.field;
+            const value = this.value;
+            updateContractField(contractId, field, value);
+        });
+    });
+    
+    // Risk Assignee dropdowns
+    document.querySelectorAll('.risk-assignee-select').forEach(select => {
+        select.dataset.originalValue = select.value;
+        select.addEventListener('change', function(e) {
+            const contractId = this.dataset.contractId;
+            const field = this.dataset.field;
+            const value = this.value;
+            updateContractField(contractId, field, value);
+        });
+    });
+    
+    // Estimated Review Completion date pickers
+    document.querySelectorAll('.estimated-review-date').forEach(input => {
+        input.dataset.originalValue = input.value;
+        input.addEventListener('change', function(e) {
+            const contractId = this.dataset.contractId;
+            const field = this.dataset.field;
+            const value = this.value;
+            updateContractField(contractId, field, value);
+        });
+    });
+}
+
+// Trigger file upload for completed document
+function triggerUploadCompleted(contractId, contractName) {
+    const fileInput = document.getElementById(`upload-${contractId}`);
+    if (fileInput) {
+        fileInput.click();
+    }
+}
+
+// Upload completed document to SharePoint ContractFiles list
+function uploadCompletedDocument(contractId, contractName) {
+    const fileInput = document.getElementById(`upload-${contractId}`);
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        return;
+    }
+    
+    if (!file.name.endsWith('.docx') && !file.name.endsWith('.doc')) {
+        alert('Please select a DOCX document.');
+        fileInput.value = '';
+        return;
+    }
+    
+    // Show loading state
+    const uploadBtn = event.target.previousElementSibling;
+    const originalHtml = uploadBtn.innerHTML;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    uploadBtn.disabled = true;
+    
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('contract_id', contractId);
+    
+    // Upload to SharePoint (original filename will be retrieved from SharePoint)
+    fetch('/api/upload-completed-contract', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Success! Completed document uploaded to SharePoint ContractFiles list.\n\nFile: ${data.file_name}`);
+            fileInput.value = '';
+            
+            // Update status to "Completed" after successful upload
+            return fetch('/api/update-contract-field', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    contract_id: contractId,
+                    field: 'Status',
+                    value: 'Completed'
+                })
+            });
+        } else {
+            alert(`Error: ${data.message}`);
+            throw new Error(data.message);
+        }
+    })
+    .then(response => {
+        if (response) {
+            return response.json();
+        }
+    })
+    .then(statusData => {
+        if (statusData && statusData.success) {
+            console.log('Status updated to Completed');
+            // Refresh the dashboard to show updated status
+            loadDashboardData();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (!error.message.includes('Error:')) {
+            alert('An error occurred while uploading the completed document. Please try again.');
+        }
+    })
+    .finally(() => {
+        uploadBtn.innerHTML = originalHtml;
+        uploadBtn.disabled = false;
+    });
 }
 
 // Load dashboard data when switching to dashboard tab

@@ -202,6 +202,60 @@ def get_contracts():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/field-choices/<field_name>', methods=['GET'])
+@login_required
+def get_field_choices(field_name):
+    """Get the choice options for a specific SharePoint field"""
+    try:
+        from app.services.sharepoint_service import sharepoint_service
+        
+        print(f"\n=== DEBUG /api/field-choices/{field_name} ===")
+        
+        # Get choices from SharePoint
+        choices = sharepoint_service.get_field_choices(field_name)
+        
+        return jsonify({'success': True, 'choices': choices})
+            
+    except Exception as e:
+        print(f"Error getting field choices: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e), 'choices': []}), 500
+
+@app.route('/api/update-contract-field', methods=['POST'])
+@login_required
+def update_contract_field():
+    """Update a specific field in a SharePoint contract list item"""
+    try:
+        from app.services.sharepoint_service import sharepoint_service
+        
+        data = request.json
+        contract_id = data.get('contract_id')
+        field = data.get('field')
+        value = data.get('value')
+        
+        print(f"\n=== DEBUG /api/update-contract-field ===")
+        print(f"Contract ID: {contract_id}")
+        print(f"Field: {field}")
+        print(f"New Value: {value}")
+        
+        if not contract_id or not field:
+            return jsonify({'success': False, 'error': 'Missing contract_id or field'}), 400
+        
+        # Update the field in SharePoint
+        success = sharepoint_service.update_contract_field(contract_id, field, value)
+        
+        if success:
+            return jsonify({'success': True, 'message': f'{field} updated successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to update field'}), 500
+            
+    except Exception as e:
+        print(f"Error updating contract field: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -325,6 +379,7 @@ def contract_standards(contract_id):
 @login_required
 def analyze_contract_route(contract_id):
     """Run AI analysis on contract with selected standards"""
+    from app.services.sharepoint_service import sharepoint_service
     temp_file_path = None
     
     try:
@@ -379,6 +434,19 @@ def analyze_contract_route(contract_id):
         }
         analysis_cache.set(contract_id, cache_data, ttl=1800)
         print(f"Results cached for contract {contract_id}")
+        
+        # Update status to "In progress" in SharePoint (matches SharePoint choice field)
+        # First get the contract to obtain the SharePoint list item ID
+        print(f"Updating status to 'In progress' for contract {contract_id}...")
+        contract = sharepoint_service.get_contract_by_id(contract_id)
+        if contract and 'id' in contract:
+            status_updated = sharepoint_service.update_contract_field(contract['id'], 'Status', 'In progress')
+            if status_updated:
+                print(f"✓ Status updated to 'In progress'")
+            else:
+                print(f"⚠ Failed to update status (non-critical)")
+        else:
+            print(f"⚠ Could not retrieve contract ID for status update (non-critical)")
         
         # Clean up temporary file
         if temp_file_path and Path(temp_file_path).exists():
@@ -533,9 +601,12 @@ def apply_suggestions_action(contract_id):
             print(f"✗ Contract not found: {contract_id}")
             return jsonify({'error': 'Contract not found'}), 404
         
+        # Store the SharePoint list item ID for later status update
+        sharepoint_item_id = contract.get('id')
         drive_id = contract.get('DriveId') or os.getenv('DRIVE_ID')
         original_filename = contract.get('FileName', 'contract.docx')
         print(f"✓ Contract metadata retrieved")
+        print(f"  SharePoint Item ID: {sharepoint_item_id}")
         print(f"  Drive ID: {drive_id}")
         print(f"  Filename: {original_filename}")
         
@@ -613,6 +684,17 @@ def apply_suggestions_action(contract_id):
                 'uploaded_at': datetime.utcnow().isoformat()
             }
             print(f"✓ Session updated")
+            
+            # Update status to "Analyzed" in SharePoint (matches SharePoint choice field)
+            print(f"\nStep 9: Updating status to 'Analyzed' for contract {contract_id}...")
+            if sharepoint_item_id:
+                status_updated = sharepoint_service.update_contract_field(sharepoint_item_id, 'Status', 'Analyzed')
+                if status_updated:
+                    print(f"✓ Status updated to 'Analyzed'")
+                else:
+                    print(f"⚠ Failed to update status (non-critical)")
+            else:
+                print(f"⚠ SharePoint item ID not available for status update (non-critical)")
             
             # Generate download URL
             download_url = url_for(

@@ -514,6 +514,122 @@ class SharePointService:
             import traceback
             traceback.print_exc()
             return None
+    
+    def get_field_choices(self, field_name):
+        """
+        Get the choice options for a specific field in the SharePoint list
+        
+        Args:
+            field_name (str): The internal name of the field (e.g., 'RiskAssignee', 'Status')
+            
+        Returns:
+            list: List of choice values, or empty list if not found
+        """
+        try:
+            # Ensure token is valid before making API calls
+            self._ensure_valid_token()
+            
+            uploaded_contracts_list_id = os.getenv('SP_LIST_ID')
+            
+            if not uploaded_contracts_list_id:
+                print("SP_LIST_ID not found in environment variables")
+                return []
+            
+            print(f"\n=== DEBUG get_field_choices ===")
+            print(f"Field: {field_name}")
+            
+            headers = {
+                'Authorization': f'Bearer {self.access_token}',
+                'Accept': 'application/json'
+            }
+            
+            # Get all columns for the list
+            columns_url = f"{self.graph_url}/sites/{self.site_id}/lists/{uploaded_contracts_list_id}/columns"
+            
+            response = requests.get(columns_url, headers=headers)
+            
+            if response.status_code == 200:
+                columns = response.json().get('value', [])
+                
+                # Find the specific field
+                for column in columns:
+                    if column.get('name') == field_name or column.get('displayName') == field_name:
+                        # Check if it's a choice field
+                        if 'choice' in column:
+                            choices = column['choice'].get('choices', [])
+                            print(f"✓ Found {len(choices)} choices for {field_name}: {choices}")
+                            return choices
+                        else:
+                            print(f"⚠ Field {field_name} is not a choice field")
+                            return []
+                
+                print(f"⚠ Field {field_name} not found in list")
+                return []
+            else:
+                print(f"✗ Error fetching columns: {response.status_code} - {response.text}")
+                return []
+                
+        except Exception as e:
+            print(f"Error fetching field choices: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    def update_contract_field(self, item_id, field_name, value):
+        """
+        Update a specific field in a SharePoint list item.
+        
+        Args:
+            item_id (str): The SharePoint list item ID
+            field_name (str): The field name to update (e.g., 'Status', 'RiskAssignee')
+            value: The new value for the field
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Ensure token is valid before making API calls
+            self._ensure_valid_token()
+            
+            uploaded_contracts_list_id = os.getenv('SP_LIST_ID')
+            
+            if not uploaded_contracts_list_id:
+                print("SP_LIST_ID not found in environment variables")
+                return False
+            
+            print(f"\n=== DEBUG update_contract_field ===")
+            print(f"Item ID: {item_id}")
+            print(f"Field: {field_name}")
+            print(f"Value: {value}")
+            
+            headers = {
+                'Authorization': f'Bearer {self.access_token}',
+                'Content-Type': 'application/json'
+            }
+            
+            # Update the item
+            update_url = f"{self.graph_url}/sites/{self.site_id}/lists/{uploaded_contracts_list_id}/items/{item_id}/fields"
+            
+            payload = {
+                field_name: value
+            }
+            
+            response = requests.patch(update_url, headers=headers, json=payload)
+            
+            print(f"Update response: {response.status_code}")
+            
+            if response.status_code == 200:
+                print(f"✓ Successfully updated {field_name} to '{value}'")
+                return True
+            else:
+                print(f"✗ Error updating field: {response.status_code} - {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"Error updating contract field: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
 
 # Initialize SharePoint service instance
 sharepoint_service = SharePointService()
