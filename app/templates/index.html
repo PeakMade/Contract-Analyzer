@@ -130,7 +130,6 @@
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Business Approver</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Date Submitted</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Date Requested</th>
-                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Est. Review Completion</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Status</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Risk Assignee</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Business Terms</th>
@@ -140,7 +139,7 @@
                             </thead>
                             <tbody id="contractsTableBody" style="background: white;">
                                 <tr>
-                                    <td colspan="12" class="text-center text-muted py-4">
+                                    <td colspan="11" class="text-center text-muted py-4">
                                         <div class="spinner-border" role="status">
                                             <span class="visually-hidden">Loading...</span>
                                         </div>
@@ -518,9 +517,6 @@ function updateContractsTable(contracts) {
                 <td style="border-color: #dee2e6;">${contract.date_submitted}</td>
                 <td style="border-color: #dee2e6;">${contract.date_requested}</td>
                 <td style="border-color: #dee2e6;">
-                    <input type="date" class="form-control form-control-sm estimated-review-date" data-contract-id="${contract.id}" data-field="EstimatedReviewCompletion" value="${contract.estimated_review_completion || ''}" style="min-width: 140px;">
-                </td>
-                <td style="border-color: #dee2e6;">
                     ${buildStatusDropdown(contract.status, contract.id)}
                 </td>
                 <td style="border-color: #dee2e6;">
@@ -565,7 +561,7 @@ function showNoContracts() {
     const tableBody = document.getElementById('contractsTableBody');
     tableBody.innerHTML = `
         <tr style="background: white;">
-            <td colspan="12" class="text-center text-muted py-4" style="border-color: #dee2e6;">
+            <td colspan="10" class="text-center text-muted py-4" style="border-color: #dee2e6;">
                 <i class="fas fa-inbox fa-2x mb-2"></i>
                 <br>No contracts uploaded yet. Switch to "Submit a Contract" tab to get started.
             </td>
@@ -639,17 +635,6 @@ function attachFieldUpdateListeners() {
             updateContractField(contractId, field, value);
         });
     });
-    
-    // Estimated Review Completion date pickers
-    document.querySelectorAll('.estimated-review-date').forEach(input => {
-        input.dataset.originalValue = input.value;
-        input.addEventListener('change', function(e) {
-            const contractId = this.dataset.contractId;
-            const field = this.dataset.field;
-            const value = this.value;
-            updateContractField(contractId, field, value);
-        });
-    });
 }
 
 // Trigger file upload for completed document
@@ -686,7 +671,7 @@ function uploadCompletedDocument(contractId, contractName) {
     formData.append('file', file);
     formData.append('contract_id', contractId);
     
-    // Upload to SharePoint (original filename will be retrieved from SharePoint)
+    // Upload to SharePoint
     fetch('/api/upload-completed-contract', {
         method: 'POST',
         body: formData

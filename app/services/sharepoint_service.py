@@ -344,6 +344,83 @@ class SharePointService:
             print(f"Error testing SharePoint connection: {str(e)}")
             return False
     
+    def upload_to_contract_files(self, file, filename):
+        """
+        Upload a completed contract document to the ContractFiles library
+        
+        Args:
+            file: FileStorage object from Flask request
+            filename: Name for the file in SharePoint
+            
+        Returns:
+            dict: {'success': bool, 'file_name': str, 'file_url': str} or error dict
+        """
+        try:
+            # Ensure token is valid
+            self._ensure_valid_token()
+            
+            # Sanitize filename - remove special characters, replace spaces with underscores
+            safe_filename = "".join(c if c.isalnum() or c in (' ', '-', '_', '.') else '-' for c in filename)
+            safe_filename = safe_filename.replace(' ', '_')
+            safe_filename = safe_filename.replace(':', '-')  # Replace colons specifically
+            
+            print(f"\n=== DEBUG upload_to_contract_files ===")
+            print(f"Original Filename: {filename}")
+            print(f"Sanitized Filename: {safe_filename}")
+            
+            # Upload file to ContractFiles library root
+            upload_url = f"{self.graph_url}/drives/{self.drive_id}/root:/{safe_filename}:/content"
+            
+            print(f"Upload URL: {upload_url}")
+            
+            headers = {
+                'Authorization': f'Bearer {self.access_token}',
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            }
+            
+            # Read file content
+            file_content = file.read()
+            print(f"File size: {len(file_content)} bytes")
+            
+            # Upload file
+            response = requests.put(upload_url, headers=headers, data=file_content)
+            
+            print(f"Upload Response Status: {response.status_code}")
+            
+            if response.status_code in [200, 201]:
+                file_info = response.json()
+                document_url = file_info.get('webUrl', '')
+                
+                print(f"✓ File uploaded successfully!")
+                print(f"Document URL: {document_url}")
+                
+                return {
+                    'success': True,
+                    'file_name': safe_filename,
+                    'file_url': document_url,
+                    'file_id': file_info.get('id'),
+                    'message': 'File uploaded successfully to ContractFiles'
+                }
+            else:
+                error_msg = f"Upload failed with status {response.status_code}: {response.text}"
+                print(f"✗ {error_msg}")
+                return {
+                    'success': False,
+                    'error': error_msg,
+                    'message': 'Failed to upload file to ContractFiles'
+                }
+                
+        except Exception as e:
+            error_msg = f"Error uploading file to ContractFiles: {str(e)}"
+            print(f"✗ EXCEPTION: {error_msg}")
+            import traceback
+            print(f"Traceback:\n{traceback.format_exc()}")
+            return {
+                'success': False,
+                'error': error_msg,
+                'message': 'Failed to upload file to ContractFiles'
+            }
+    
     def get_contract_files(self, limit=50, user_email=None, is_admin=False):
         """
         Retrieve list of contract records from the specific SharePoint list

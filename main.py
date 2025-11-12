@@ -256,6 +256,56 @@ def update_contract_field():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/upload-completed-contract', methods=['POST'])
+@login_required
+def upload_completed_contract():
+    """Upload a completed contract document to SharePoint ContractFiles"""
+    try:
+        from app.services.sharepoint_service import sharepoint_service
+        
+        # Get the uploaded file and contract ID
+        file = request.files.get('file')
+        contract_id = request.form.get('contract_id')
+        
+        print(f"\n=== DEBUG /api/upload-completed-contract ===")
+        print(f"Contract ID: {contract_id}")
+        print(f"File: {file.filename if file else 'None'}")
+        
+        if not file or not contract_id:
+            return jsonify({'success': False, 'message': 'Missing file or contract_id'}), 400
+        
+        # Use the uploaded file's name and add _completed suffix
+        uploaded_filename = file.filename
+        base_name = uploaded_filename.rsplit('.', 1)[0] if '.' in uploaded_filename else uploaded_filename
+        completed_filename = f"{base_name}_completed.docx"
+        
+        print(f"Uploaded filename: {uploaded_filename}")
+        print(f"Completed filename: {completed_filename}")
+        
+        # Upload the completed file to ContractFiles
+        upload_result = sharepoint_service.upload_to_contract_files(
+            file=file,
+            filename=completed_filename
+        )
+        
+        if upload_result['success']:
+            return jsonify({
+                'success': True,
+                'message': 'Completed contract uploaded successfully',
+                'file_name': upload_result.get('file_name')
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': upload_result.get('error', 'Failed to upload completed contract')
+            }), 500
+            
+    except Exception as e:
+        print(f"Error uploading completed contract: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
