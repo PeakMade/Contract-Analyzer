@@ -136,7 +136,7 @@
                                 </td>
                                 
                                 <!-- Suggestion -->
-                                <td class="align-middle">
+                                <td class="align-middle" data-full-suggestion="{{ item.suggestion }}">
                                     {% if item.suggestion and item.suggestion != 'N/A' %}
                                     <div class="small">
                                         {{ item.suggestion[:300] }}{% if item.suggestion|length > 300 %}...{% endif %}
@@ -210,6 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const deselectAllBtn = document.getElementById('deselectAllBtn');
     const applyBtn = document.getElementById('applySelectedBtn');
     const selectedCount = document.getElementById('selectedCount');
+    const form = document.getElementById('applySuggestionsForm');
 
     function updateSelectedCount() {
         const checkedCount = document.querySelectorAll('.apply-checkbox:checked').length;
@@ -234,18 +235,97 @@ document.addEventListener('DOMContentLoaded', function() {
         cb.addEventListener('change', updateSelectedCount);
     });
 
-    // Form submission confirmation
-    document.getElementById('applySuggestionsForm').addEventListener('submit', function(e) {
+    // Form submission - POST JSON and trigger download
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
         const checkedCount = document.querySelectorAll('.apply-checkbox:checked').length;
         if (checkedCount === 0) {
-            e.preventDefault();
             alert('Please select at least one standard to apply.');
             return;
         }
         
-        if (!confirm(`Are you sure you want to apply ${checkedCount} selected suggestion${checkedCount !== 1 ? 's' : ''} to this contract?`)) {
-            e.preventDefault();
+        if (!confirm(`Apply ${checkedCount} selected suggestion${checkedCount !== 1 ? 's' : ''} to this contract?\n\nThis will create an edited document with an appendix containing the suggested standards.`)) {
+            return;
         }
+        
+        // Disable button and show loading state
+        applyBtn.disabled = true;
+        const originalText = applyBtn.innerHTML;
+        applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        
+        // Gather selected standards with their suggestions
+        const selectedItems = [];
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                const row = cb.closest('tr');
+                const standard = cb.dataset.standard || cb.value;
+                
+                // Get full suggestion text from data attribute
+                const suggestionCell = row.querySelector('td[data-full-suggestion]');
+                let suggestion = 'No suggestion available';
+                if (suggestionCell) {
+                    suggestion = suggestionCell.dataset.fullSuggestion || suggestion;
+                }
+                
+                selectedItems.push({
+                    standard: standard,
+                    suggestion: suggestion
+                });
+            }
+        });
+        
+        // POST JSON to backend
+        const contractId = '{{ contract_id }}';
+        fetch(`/contracts/${contractId}/apply_suggestions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                items: selectedItems
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || data.error || 'Application failed');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.download_url) {
+                // Show success message
+                alert(`✅ Successfully applied ${data.standards_applied} standard${data.standards_applied !== 1 ? 's' : ''}!\n\nDownloading edited document: ${data.filename}`);
+                
+                // Trigger download
+                window.location.href = data.download_url;
+                
+                // Reset button after delay
+                setTimeout(() => {
+                    applyBtn.innerHTML = originalText;
+                    applyBtn.disabled = false;
+                }, 2000);
+            } else {
+                throw new Error('Invalid response from server');
+            }
+        })
+        .catch(error => {
+            console.error('Error applying suggestions:', error);
+            
+            // Check if session expired
+            if (error.message.includes('Session expired') || error.message.includes('sign in')) {
+                alert('⚠️ Your session has expired. Please sign in again.');
+                window.location.href = '/login';
+            } else {
+                alert(`❌ Error applying suggestions:\n\n${error.message}`);
+            }
+            
+            // Reset button
+            applyBtn.innerHTML = originalText;
+            applyBtn.disabled = false;
+        });
     });
 
     // Initial count update

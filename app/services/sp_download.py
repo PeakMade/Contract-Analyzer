@@ -540,3 +540,52 @@ def download_contract(contract_id: str) -> Path:
         if isinstance(e, RuntimeError):
             raise
         raise RuntimeError("An unexpected error occurred during download")
+
+
+def download_contract_by_filename(drive_id: str, filename: str) -> bytes:
+    """
+    Download a contract file by filename from SharePoint drive.
+    
+    Args:
+        drive_id: SharePoint drive ID
+        filename: Name of the file to download
+    
+    Returns:
+        bytes: File content
+    
+    Raises:
+        FileNotFoundError: If file not found
+        PermissionError: If SESSION_EXPIRED or access denied
+        DownloadError: If download fails for other reasons
+    """
+    token = _get_bearer_token()
+    
+    # Download URL: /drives/{driveId}/root:/{filename}:/content
+    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{filename}:/content"
+    
+    headers = {'Authorization': f'Bearer {token}'}
+    
+    print(f"DEBUG sp_download: Downloading file by name: {filename}")
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=60)
+        
+        if response.status_code == 200:
+            print(f"DEBUG sp_download: ✓ Download successful - {len(response.content)} bytes")
+            return response.content
+        elif response.status_code == 404:
+            raise FileNotFoundError(f"File not found: {filename}")
+        elif response.status_code == 401:
+            raise PermissionError("SESSION_EXPIRED")
+        else:
+            error_msg = f"Download failed: HTTP {response.status_code}"
+            try:
+                error_data = response.json()
+                if 'error' in error_data:
+                    error_msg += f" - {error_data['error'].get('message', 'Unknown error')}"
+            except:
+                pass
+            raise DownloadError(error_msg)
+    
+    except requests.exceptions.RequestException as e:
+        raise DownloadError(f"Network error: {str(e)}")

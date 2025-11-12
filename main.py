@@ -456,34 +456,177 @@ def apply_suggestions_new(contract_id):
         flash('Error loading analysis results.', 'error')
         return redirect(url_for('dashboard'))
 
-@app.route('/contract/<contract_id>/apply_suggestions', methods=['POST'])
+@app.route('/contracts/<contract_id>/apply_suggestions', methods=['POST'])
 @login_required
 def apply_suggestions_action(contract_id):
-    """Handle applying selected suggestions to contract (placeholder)"""
+    """Apply selected suggestions to contract and return download URL."""
+    from app.services.sharepoint_service import sharepoint_service
+    from app.services import doc_editor, sp_upload
+    import tempfile
+    
     try:
-        selected_standards = request.form.getlist('apply_standards')
+        # Parse JSON payload
+        data = request.get_json()
+        if not data or 'items' not in data:
+            return jsonify({'error': 'Invalid payload: missing items'}), 400
         
-        if not selected_standards:
-            flash('No standards selected to apply.', 'warning')
-            return redirect(url_for('apply_suggestions_new', contract_id=contract_id))
+        items = data['items']
+        if not items:
+            return jsonify({'error': 'No standards selected'}), 400
         
-        print(f"Apply suggestions for contract {contract_id}: {len(selected_standards)} standards")
+        # Validate item structure
+        for item in items:
+            if 'standard' not in item or 'suggestion' not in item:
+                return jsonify({'error': 'Invalid item structure'}), 400
         
-        # TODO: Implement actual suggestion application logic
-        # This could involve:
-        # 1. Generating a modified contract document
-        # 2. Creating a report with suggested changes
-        # 3. Updating SharePoint with recommendations
+        print(f"Applying {len(items)} suggestions to contract {contract_id}")
         
-        flash(f'✅ Applied {len(selected_standards)} suggestions successfully!', 'success')
-        return redirect(url_for('dashboard'))
+        # Get contract metadata
+        contract = sharepoint_service.get_contract_by_id(contract_id)
+        if not contract:
+            return jsonify({'error': 'Contract not found'}), 404
         
+        drive_id = contract.get('DriveId') or os.getenv('DRIVE_ID')
+        original_filename = contract.get('FileName', 'contract.docx')
+        
+        # Download original document
+        print(f"Downloading original document: {original_filename}")
+        try:
+            doc_content = download_contract(contract_id)
+        except FileNotFoundError:
+            return jsonify({'error': 'Original document not found'}), 404
+        except PermissionError as e:
+            if 'SESSION_EXPIRED' in str(e):
+                return jsonify({'error': 'Session expired', 'message': 'Please sign in again'}), 401
+            raise
+        
+        # Save to temp file for processing
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp:
+            tmp.write(doc_content)
+            original_path = Path(tmp.name)
+        
+        try:
+            # Get all standards for style detection
+            all_standards = get_preferred_standards()
+            known_standard_names = [s['Title'] for s in all_standards if 'Title' in s]
+            
+            # Apply suggestions to document
+            print(f"Appending {len(items)} standards to document")
+            edited_path = doc_editor.append_suggested_standards(
+                original_path,
+                items,
+                known_standards=known_standard_names
+            )
+            
+            # Read edited content
+            with open(edited_path, 'rb') as f:
+                edited_content = f.read()
+            
+            # Generate edited filename
+            edited_filename = sp_upload.generate_edited_filename(original_filename)
+            
+            # Upload to SharePoint
+            print(f"Uploading edited document as: {edited_filename}")
+            try:
+                upload_result = sp_upload.upload_file(
+                    drive_id=drive_id,
+                    folder_path='',  # Same folder as original (root of ContractFiles)
+                    filename=edited_filename,
+                    content=edited_content
+                )
+                print(f"Upload successful: {upload_result.get('name')}")
+            except PermissionError as e:
+                if 'SESSION_EXPIRED' in str(e):
+                    return jsonify({'error': 'Session expired', 'message': 'Please sign in again'}), 401
+                raise
+            except sp_upload.UploadError as e:
+                print(f"Upload error: {str(e)}")
+                return jsonify({'error': 'Upload failed', 'message': str(e)}), 502
+            
+            # Store edited file info in session for download
+            session[f'edited_file_{contract_id}'] = {
+                'filename': edited_filename,
+                'drive_id': drive_id,
+                'uploaded_at': datetime.utcnow().isoformat()
+            }
+            
+            # Generate download URL
+            download_url = url_for(
+                'download_edited_contract',
+                contract_id=contract_id,
+                _external=True
+            )
+            
+            return jsonify({
+                'success': True,
+                'download_url': download_url,
+                'filename': edited_filename,
+                'standards_applied': len(items)
+            })
+        
+        finally:
+            # Cleanup temp files
+            if original_path.exists():
+                original_path.unlink()
+            if 'edited_path' in locals() and edited_path.exists():
+                edited_path.unlink()
+    
+    except PermissionError as e:
+        if 'SESSION_EXPIRED' in str(e):
+            return jsonify({'error': 'Session expired', 'message': 'Please sign in again'}), 401
+        raise
     except Exception as e:
         print(f"Error applying suggestions: {str(e)}")
         import traceback
         traceback.print_exc()
-        flash('Error applying suggestions.', 'error')
-        return redirect(url_for('apply_suggestions_new', contract_id=contract_id))
+        return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
+
+
+@app.route('/contracts/<contract_id>/download_edited')
+@login_required
+def download_edited_contract(contract_id):
+    """Download the edited contract document."""
+    from flask import send_file
+    from io import BytesIO
+    
+    try:
+        # Get edited file info from session
+        file_info = session.get(f'edited_file_{contract_id}')
+        if not file_info:
+            return jsonify({'error': 'No edited file found'}), 404
+        
+        filename = file_info['filename']
+        drive_id = file_info['drive_id']
+        
+        print(f"Downloading edited file: {filename}")
+        
+        # Download from SharePoint using the same approach as original
+        # We'll use the drive_id and filename to construct the download
+        try:
+            from app.services.sp_download import download_contract_by_filename
+            content = download_contract_by_filename(drive_id, filename)
+        except FileNotFoundError:
+            return jsonify({'error': 'Edited file not found in SharePoint'}), 404
+        except PermissionError as e:
+            if 'SESSION_EXPIRED' in str(e):
+                flash('Session expired — please sign in again', 'error')
+                return redirect(url_for('login'))
+            raise
+        
+        # Send file as attachment
+        return send_file(
+            BytesIO(content),
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            as_attachment=True,
+            download_name=filename
+        )
+    
+    except Exception as e:
+        print(f"Error downloading edited contract: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash('Error downloading edited contract.', 'error')
+        return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
