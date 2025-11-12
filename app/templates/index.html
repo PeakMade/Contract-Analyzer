@@ -578,8 +578,8 @@ function uploadDocument(contractId) {
 }
 
 // Update contract field in SharePoint
-function updateContractField(contractId, field, value) {
-    const originalValue = event.target.dataset.originalValue;
+function updateContractField(contractId, field, value, targetElement) {
+    const originalValue = targetElement.dataset.originalValue;
     
     fetch('/api/update-contract-field', {
         method: 'POST',
@@ -597,18 +597,17 @@ function updateContractField(contractId, field, value) {
         if (data.success) {
             console.log(`Successfully updated ${field} to ${value}`);
             // Store the new value as original
-            event.target.dataset.originalValue = value;
+            targetElement.dataset.originalValue = value;
         } else {
-            alert(`Error updating ${field}: ${data.error}`);
+            console.error(`Error updating ${field}:`, data.error);
             // Revert to original value
-            event.target.value = originalValue;
+            targetElement.value = originalValue;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert(`An error occurred while updating ${field}`);
         // Revert to original value
-        event.target.value = originalValue;
+        targetElement.value = originalValue;
     });
 }
 
@@ -621,7 +620,7 @@ function attachFieldUpdateListeners() {
             const contractId = this.dataset.contractId;
             const field = this.dataset.field;
             const value = this.value;
-            updateContractField(contractId, field, value);
+            updateContractField(contractId, field, value, this);
         });
     });
     
@@ -632,7 +631,7 @@ function attachFieldUpdateListeners() {
             const contractId = this.dataset.contractId;
             const field = this.dataset.field;
             const value = this.value;
-            updateContractField(contractId, field, value);
+            updateContractField(contractId, field, value, this);
         });
     });
 }
