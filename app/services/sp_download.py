@@ -26,7 +26,7 @@ def _get_bearer_token() -> str:
     Raises:
         PermissionError: If token is missing or expired.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
     
     token = session.get('access_token')
     
@@ -39,12 +39,15 @@ def _get_bearer_token() -> str:
     if token_expires_str:
         try:
             token_expires_at = datetime.fromisoformat(token_expires_str)
-            if datetime.utcnow() >= token_expires_at:
+            # Use timezone-aware UTC time for comparison
+            now_utc = datetime.now(timezone.utc)
+            if now_utc >= token_expires_at:
                 logger.warning("Access token has expired")
-                print(f"DEBUG sp_download: Token expired at {token_expires_at} UTC")
+                print(f"DEBUG sp_download: Token expired at {token_expires_at}")
+                print(f"DEBUG sp_download: Current time is {now_utc}")
                 raise PermissionError("SESSION_EXPIRED")
             else:
-                time_left = (token_expires_at - datetime.utcnow()).total_seconds() / 60
+                time_left = (token_expires_at - now_utc).total_seconds() / 60
                 print(f"DEBUG sp_download: Token valid for {time_left:.1f} more minutes")
         except ValueError as e:
             logger.warning(f"Could not parse token expiration: {e}")

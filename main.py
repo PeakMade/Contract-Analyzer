@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 # Import analysis services
 from app.services.sp_download import download_contract
 from app.services.text_extractor import extract_text
-from app.services.sp_preferred_standards import get_preferred_standards
+from app.services.sp_preferred_standards import get_preferred_standards, get_preferred_standards_dict
 from app.services.analysis_orchestrator import analyze_contract as run_analysis
 from app.cache import analysis_cache
 
@@ -214,29 +214,60 @@ def admin_panel():
     print(f"\n=== DEBUG admin_panel() route called ===")
     return render_template('admin.html')
 
-# Default standards list (19 standards)
-DEFAULT_STANDARDS = [
-    "Indemnification",
-    "Limitation of Liability",
-    "Term and Termination",
-    "Confidentiality",
-    "Intellectual Property",
-    "Warranties",
-    "Payment Terms",
-    "Dispute Resolution",
-    "Governing Law",
-    "Force Majeure",
-    "Assignment",
-    "Notices",
-    "Entire Agreement",
-    "Severability",
-    "Waiver",
-    "Insurance Requirements",
-    "Compliance with Laws",
-    "Data Protection",
-    "Audit Rights"
-]
+@app.route('/debug/lists')
+@admin_required
+def debug_lists():
+    """Debug route to list all SharePoint lists"""
+    import requests
+    
+    try:
+        print("\n=== DEBUG /debug/lists route ===")
+        token = session.get('access_token')
+        site_id = os.getenv('O365_SITE_ID')
+        
+        print(f"Token present: {bool(token)}")
+        print(f"Site ID: {site_id}")
+        
+        if not token:
+            return jsonify({'error': 'No access token in session'}), 401
+        
+        url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/lists"
+        print(f"URL: {url}")
+        
+        headers = {'Authorization': f'Bearer {token}'}
+        
+        print(f"Making request to Graph API...")
+        response = requests.get(url, headers=headers, timeout=30)
+        print(f"Response status: {response.status_code}")
+        
+        response.raise_for_status()
+        
+        lists_data = response.json()
+        lists = lists_data.get('value', [])
+        print(f"Found {len(lists)} lists")
+        
+        # Format for display
+        result = []
+        for lst in lists:
+            list_info = {
+                'name': lst.get('displayName'),
+                'id': lst.get('id'),
+                'description': lst.get('description', 'N/A'),
+                'webUrl': lst.get('webUrl', 'N/A')
+            }
+            result.append(list_info)
+            print(f"  - {list_info['name']}: {list_info['id']}")
+        
+        return jsonify({'lists': result, 'count': len(result), 'site_id': site_id})
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"ERROR in debug_lists: {str(e)}")
+        print(error_trace)
+        return jsonify({'error': str(e), 'trace': error_trace}), 500
 
+# Default standards list (19 standards)
 @app.route('/contract/<contract_id>/standards')
 @login_required
 def contract_standards(contract_id):
@@ -269,10 +300,19 @@ def contract_standards(contract_id):
             flash('You do not have access to this contract', 'error')
             return redirect(url_for('dashboard'))
         
+        # Get preferred standards from SharePoint
+        print(f"Loading preferred standards from SharePoint...")
+        preferred_standards = get_preferred_standards()
+        print(f"Loaded {len(preferred_standards)} preferred standards")
+        if preferred_standards:
+            print(f"First standard example: {preferred_standards[0]}")
+        else:
+            print(f"WARNING: No standards loaded! Check SharePoint connection and list configuration.")
+        
         return render_template('standards.html',
                              contract_id=contract_id,
                              contract_name=contract['name'],
-                             default_standards=DEFAULT_STANDARDS)
+                             preferred_standards=preferred_standards)
         
     except Exception as e:
         print(f"Error in contract_standards: {str(e)}")
@@ -321,14 +361,14 @@ def analyze_contract_route(contract_id):
         contract_text = extract_text(temp_file_path)
         print(f"Extracted {len(contract_text)} characters")
         
-        # Get preferred standards from SharePoint
+        # Get preferred standards from SharePoint (as dict for analysis)
         print(f"Loading preferred standards from SharePoint...")
-        preferred_standards = get_preferred_standards()
-        print(f"Loaded {len(preferred_standards)} preferred standards")
+        preferred_standards_dict = get_preferred_standards_dict()
+        print(f"Loaded {len(preferred_standards_dict)} preferred standards")
         
         # Run AI analysis
         print(f"Running AI analysis for {len(all_standards)} standards...")
-        analysis_results = run_analysis(contract_text, all_standards, preferred_standards)
+        analysis_results = run_analysis(contract_text, all_standards, preferred_standards_dict)
         print(f"Analysis complete: {len(analysis_results)} results")
         
         # Cache the results with 30-minute TTL
@@ -479,54 +519,75 @@ def apply_suggestions_action(contract_id):
             if 'standard' not in item or 'suggestion' not in item:
                 return jsonify({'error': 'Invalid item structure'}), 400
         
+        print(f"\n{'='*70}")
+        print(f"APPLY SUGGESTIONS: Contract {contract_id}")
+        print(f"{'='*70}")
         print(f"Applying {len(items)} suggestions to contract {contract_id}")
+        for i, item in enumerate(items[:3]):
+            print(f"  [{i+1}] {item.get('standard', 'N/A')[:40]}...")
         
         # Get contract metadata
+        print(f"\nStep 1: Fetching contract metadata...")
         contract = sharepoint_service.get_contract_by_id(contract_id)
         if not contract:
+            print(f"✗ Contract not found: {contract_id}")
             return jsonify({'error': 'Contract not found'}), 404
         
         drive_id = contract.get('DriveId') or os.getenv('DRIVE_ID')
         original_filename = contract.get('FileName', 'contract.docx')
+        print(f"✓ Contract metadata retrieved")
+        print(f"  Drive ID: {drive_id}")
+        print(f"  Filename: {original_filename}")
         
         # Download original document
-        print(f"Downloading original document: {original_filename}")
+        print(f"\nStep 2: Downloading original document: {original_filename}")
         try:
-            doc_content = download_contract(contract_id)
+            doc_path = download_contract(contract_id)
+            doc_size = doc_path.stat().st_size
+            print(f"✓ Downloaded to temp file: {doc_path}")
+            print(f"  File size: {doc_size:,} bytes")
         except FileNotFoundError:
+            print(f"✗ ERROR: Original document not found")
             return jsonify({'error': 'Original document not found'}), 404
         except PermissionError as e:
             if 'SESSION_EXPIRED' in str(e):
+                print(f"✗ ERROR: Session expired")
                 return jsonify({'error': 'Session expired', 'message': 'Please sign in again'}), 401
             raise
         
-        # Save to temp file for processing
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp:
-            tmp.write(doc_content)
-            original_path = Path(tmp.name)
+        # Use the downloaded temp file directly
+        print(f"\nStep 3: Using downloaded temp file for processing...")
+        original_path = doc_path
+        print(f"✓ Original path ready: {original_path}")
         
         try:
             # Get all standards for style detection
+            print(f"\nStep 4: Getting preferred standards for style detection...")
             all_standards = get_preferred_standards()
-            known_standard_names = [s['Title'] for s in all_standards if 'Title' in s]
+            known_standard_names = [s['standard'] for s in all_standards if 'standard' in s]
+            print(f"✓ Found {len(known_standard_names)} known standards")
             
             # Apply suggestions to document
-            print(f"Appending {len(items)} standards to document")
+            print(f"\nStep 5: Appending {len(items)} standards to document...")
             edited_path = doc_editor.append_suggested_standards(
                 original_path,
                 items,
                 known_standards=known_standard_names
             )
+            print(f"✓ Document editing complete")
             
             # Read edited content
+            print(f"\nStep 6: Reading edited document...")
             with open(edited_path, 'rb') as f:
                 edited_content = f.read()
+            print(f"✓ Read {len(edited_content):,} bytes")
             
             # Generate edited filename
             edited_filename = sp_upload.generate_edited_filename(original_filename)
+            print(f"✓ Generated filename: {edited_filename}")
             
             # Upload to SharePoint
-            print(f"Uploading edited document as: {edited_filename}")
+            print(f"\nStep 7: Uploading edited document to SharePoint...")
             try:
                 upload_result = sp_upload.upload_file(
                     drive_id=drive_id,
@@ -534,21 +595,24 @@ def apply_suggestions_action(contract_id):
                     filename=edited_filename,
                     content=edited_content
                 )
-                print(f"Upload successful: {upload_result.get('name')}")
+                print(f"✓ Upload successful: {upload_result.get('name')}")
             except PermissionError as e:
+                print(f"✗ PermissionError during upload: {e}")
                 if 'SESSION_EXPIRED' in str(e):
                     return jsonify({'error': 'Session expired', 'message': 'Please sign in again'}), 401
                 raise
             except sp_upload.UploadError as e:
-                print(f"Upload error: {str(e)}")
+                print(f"✗ UploadError: {str(e)}")
                 return jsonify({'error': 'Upload failed', 'message': str(e)}), 502
             
             # Store edited file info in session for download
+            print(f"\nStep 8: Storing file info in session...")
             session[f'edited_file_{contract_id}'] = {
                 'filename': edited_filename,
                 'drive_id': drive_id,
                 'uploaded_at': datetime.utcnow().isoformat()
             }
+            print(f"✓ Session updated")
             
             # Generate download URL
             download_url = url_for(
@@ -556,6 +620,11 @@ def apply_suggestions_action(contract_id):
                 contract_id=contract_id,
                 _external=True
             )
+            
+            print(f"\n✓✓✓ SUCCESS ✓✓✓")
+            print(f"  Standards applied: {len(items)}")
+            print(f"  Download URL: {download_url}")
+            print(f"{'='*70}\n")
             
             return jsonify({
                 'success': True,
@@ -589,31 +658,47 @@ def download_edited_contract(contract_id):
     from flask import send_file
     from io import BytesIO
     
+    print(f"\n{'='*70}")
+    print(f"DOWNLOAD EDITED: Contract {contract_id}")
+    print(f"{'='*70}")
+    print(f"User: {session.get('user_email', 'Unknown')}")
+    
     try:
         # Get edited file info from session
+        print(f"\nLooking for session key: edited_file_{contract_id}")
         file_info = session.get(f'edited_file_{contract_id}')
         if not file_info:
+            print(f"✗ ERROR: No edited file found in session")
+            print(f"Available keys: {[k for k in session.keys() if 'edited' in k]}")
             return jsonify({'error': 'No edited file found'}), 404
         
         filename = file_info['filename']
         drive_id = file_info['drive_id']
+        print(f"✓ Found edited file:")
+        print(f"  Filename: {filename}")
+        print(f"  Drive ID: {drive_id}")
         
-        print(f"Downloading edited file: {filename}")
+        print(f"\nDownloading edited file from SharePoint...")
         
         # Download from SharePoint using the same approach as original
         # We'll use the drive_id and filename to construct the download
         try:
             from app.services.sp_download import download_contract_by_filename
             content = download_contract_by_filename(drive_id, filename)
+            print(f"✓ Downloaded {len(content):,} bytes")
         except FileNotFoundError:
+            print(f"✗ ERROR: Edited file not found in SharePoint")
             return jsonify({'error': 'Edited file not found in SharePoint'}), 404
         except PermissionError as e:
+            print(f"✗ ERROR: Permission denied - {e}")
             if 'SESSION_EXPIRED' in str(e):
                 flash('Session expired — please sign in again', 'error')
                 return redirect(url_for('login'))
             raise
         
         # Send file as attachment
+        print(f"✓ Sending file to user: {filename}")
+        print(f"{'='*70}\n")
         return send_file(
             BytesIO(content),
             mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',

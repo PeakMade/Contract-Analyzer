@@ -110,14 +110,15 @@ def analyze_contract(
     Analyze a contract against multiple standards.
     
     Combines AI analysis with SharePoint preferred standards:
-    - For each standard, calls LLM to analyze contract text
-    - If standard not found and preferred clause exists in SharePoint, uses it
+    - For SharePoint standards: AI checks presence only, uses SharePoint clause if missing
+    - For custom standards: AI checks presence AND generates suggestion if missing
     - Returns comprehensive results for all standards
     
     Args:
         text: The contract text to analyze.
         standards: List of standard names to check.
         preferred: Dictionary of preferred (gold standard) clauses from SharePoint.
+                   Keys are standard names from "Preferred Contract Terms" list.
     
     Returns:
         Dictionary keyed by standard name, with values containing:
@@ -125,7 +126,7 @@ def analyze_contract(
         - excerpt (str|None): Relevant excerpt if found
         - location (str|None): Location in contract
         - suggestion (str|None): Suggested clause text
-        - source (str): "ai" or "sharepoint" indicating suggestion source
+        - source (str): "sharepoint" (preferred list), "ai" (custom/generated), or "error"
     
     Raises:
         ValueError: If standards is empty or text is blank.
@@ -138,6 +139,7 @@ def analyze_contract(
         raise ValueError("Contract text cannot be blank")
     
     logger.info(f"Starting contract analysis: {len(standards)} standards, {len(text)} chars")
+    logger.info(f"SharePoint preferred standards available: {len(preferred)}")
     
     # Import here to avoid circular dependency
     from app.services.llm_client import analyze_standard
@@ -147,25 +149,35 @@ def analyze_contract(
     for i, standard in enumerate(standards, 1):
         logger.info(f"Analyzing standard {i}/{len(standards)}: {standard}")
         
+        # Check if this is a SharePoint preferred standard or custom standard
+        is_preferred_standard = standard in preferred
+        
         try:
             # Analyze with LLM (handles chunking internally)
             result = _analyze_standard_with_chunks(text, standard, analyze_standard)
             
-            # If not found and we have a preferred clause from SharePoint, use it
-            if not result['found'] and standard in preferred:
-                logger.info(f"Using SharePoint preferred clause for: {standard}")
-                result['suggestion'] = preferred[standard]
-                result['source'] = 'sharepoint'
+            if not result['found']:
+                # Standard not found in contract
+                if is_preferred_standard:
+                    # Use SharePoint clause directly (don't use AI suggestion)
+                    logger.info(f"Using SharePoint preferred clause for: {standard}")
+                    result['suggestion'] = preferred[standard]
+                    result['source'] = 'sharepoint'
+                else:
+                    # Custom standard - keep AI-generated suggestion
+                    logger.info(f"Using AI-generated suggestion for custom standard: {standard}")
+                    result['source'] = 'ai'
             else:
-                result['source'] = 'ai'
+                # Standard found - mark source appropriately
+                result['source'] = 'sharepoint' if is_preferred_standard else 'ai'
             
             results[standard] = result
             
         except Exception as e:
             logger.error(f"Failed to analyze standard '{standard}': {e}")
             
-            # Use preferred clause if available, otherwise provide generic error
-            if standard in preferred:
+            # Use preferred clause if available, otherwise provide error message
+            if is_preferred_standard:
                 results[standard] = {
                     'found': False,
                     'excerpt': None,

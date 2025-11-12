@@ -98,9 +98,9 @@
               <td style="padding: 15px;">
                 <strong style="color: #495057;">{{ item.standard }}</strong>
                 {% if item.source == 'sharepoint' %}
-                  <br><small style="color: #6c757d;"><i class="bi bi-building"></i> SharePoint Gold</small>
+                  <br><small style="color: #28a745; font-weight: 600;"><i class="bi bi-check-circle"></i> Preferred Clause</small>
                 {% elif item.source == 'ai' %}
-                  <br><small style="color: #6c757d;"><i class="bi bi-robot"></i> AI Generated</small>
+                  <br><small style="color: #6c757d;"><i class="bi bi-robot"></i> Custom Standard</small>
                 {% endif %}
               </td>
 
@@ -187,12 +187,12 @@
             style="flex: 2; border: 2px solid #e9ecef; border-radius: 12px; padding: 20px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
             <div class="standards-grid"
               style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
-              {% for standard in default_standards %}
+              {% for item in preferred_standards %}
               <label
                 style="display: flex; align-items: center; justify-content: flex-start; padding: 12px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 50px;">
-                <input type="checkbox" name="standards" value="{{ standard }}" checked
+                <input type="checkbox" name="standards" value="{{ item.standard }}" checked
                   style="margin-right: 10px; transform: scale(1.1);">
-                <span style="font-weight: 500; color: #495057; font-size: 0.9rem;">{{ standard }}</span>
+                <span style="font-weight: 500; color: #495057; font-size: 0.9rem;">{{ item.standard }}</span>
               </label>
               {% endfor %}
             </div>

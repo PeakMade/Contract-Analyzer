@@ -79,58 +79,129 @@ def _fetch_preferred_standards_list(token: str, list_id: str) -> dict:
     return response.json()
 
 
-def get_preferred_standards() -> dict[str, str]:
+def get_preferred_standards() -> list[dict]:
     """
     Load preferred (gold standard) clauses from SharePoint list.
     
-    Returns a dictionary mapping standard names to their preferred clause text.
-    On failure, returns empty dict and logs a warning (non-fatal).
+    Returns a list of dictionaries with standard names and their clause text.
+    On failure, returns empty list and logs a warning (non-fatal).
     
     Returns:
-        Dictionary like {"Indemnification": "INDEMNIFICATION. ...", ...}
+        List like [
+            {"standard": "Indemnification", "clause": "INDEMNIFICATION. ..."},
+            {"standard": "Limitation of Liability", "clause": "..."}
+        ]
     """
     try:
         # Get configuration
         list_id = os.getenv('PREFERRED_STANDARDS_LIST_ID')
         if not list_id:
             logger.warning("PREFERRED_STANDARDS_LIST_ID not configured, skipping preferred standards lookup")
-            return {}
+            return []
         
         # Get token
         token = _get_bearer_token()
         if not token:
             logger.warning("No bearer token available, skipping preferred standards lookup")
-            return {}
+            return []
         
         # Fetch from SharePoint
-        logger.info(f"Fetching preferred standards from SharePoint list: {list_id}")
+        logger.info(f"Fetching preferred standards from SharePoint list 'Preferred Contract Terms': {list_id}")
+        print(f"DEBUG sp_preferred_standards: Fetching from list_id={list_id}")
         response_data = _fetch_preferred_standards_list(token, list_id)
         
         # Parse response
-        standards_dict = {}
+        standards_list = []
         items = response_data.get('value', [])
+        print(f"DEBUG sp_preferred_standards: Received {len(items)} items from SharePoint")
         
         for item in items:
             fields = item.get('fields', {})
+            print(f"DEBUG sp_preferred_standards: Item fields keys: {list(fields.keys())}")
             
             # Extract standard name and clause text
-            # Adjust field names based on your SharePoint list schema
-            standard_name = fields.get('Title') or fields.get('StandardName')
-            clause_text = fields.get('ClauseText') or fields.get('PreferredClause')
+            # SharePoint columns: "Standard" and "Clause"
+            standard_name = fields.get('Standard') or fields.get('Title')
+            clause_text = fields.get('Clause') or fields.get('ClauseText')
+            
+            print(f"DEBUG sp_preferred_standards: standard_name={standard_name}, clause_length={len(clause_text) if clause_text else 0}")
             
             if standard_name and clause_text:
-                standards_dict[standard_name] = clause_text
+                standards_list.append({
+                    'standard': standard_name,
+                    'clause': clause_text
+                })
                 logger.debug(f"Loaded preferred standard: {standard_name}")
+            else:
+                print(f"DEBUG sp_preferred_standards: SKIPPED - Missing data. Standard={bool(standard_name)}, Clause={bool(clause_text)}")
         
-        logger.info(f"Loaded {len(standards_dict)} preferred standards from SharePoint")
-        return standards_dict
+        logger.info(f"Loaded {len(standards_list)} preferred standards from SharePoint")
+        print(f"DEBUG sp_preferred_standards: Returning {len(standards_list)} standards")
+        return standards_list
         
     except ValueError as e:
         logger.warning(f"Configuration error for preferred standards: {e}")
-        return {}
+        print(f"DEBUG sp_preferred_standards: ValueError - {e}")
+        print(f"DEBUG sp_preferred_standards: Returning fallback standards")
+        return _get_fallback_standards()
     except requests.RequestException as e:
         logger.warning(f"Failed to fetch preferred standards from SharePoint: {type(e).__name__}")
-        return {}
+        print(f"DEBUG sp_preferred_standards: RequestException - {type(e).__name__}: {e}")
+        print(f"DEBUG sp_preferred_standards: Returning fallback standards")
+        return _get_fallback_standards()
     except Exception as e:
         logger.warning(f"Unexpected error loading preferred standards: {type(e).__name__}")
-        return {}
+        print(f"DEBUG sp_preferred_standards: Exception - {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        print(f"DEBUG sp_preferred_standards: Returning fallback standards")
+        return _get_fallback_standards()
+
+
+def _get_fallback_standards() -> list[dict]:
+    """
+    Temporary fallback standards when SharePoint list is unavailable.
+    Returns hardcoded standards with generic clause text.
+    """
+    print("WARNING: Using fallback standards. Please configure correct PREFERRED_STANDARDS_LIST_ID in .env")
+    
+    fallback = [
+        "Indemnification",
+        "Limitation of Liability", 
+        "Term and Termination",
+        "Confidentiality",
+        "Intellectual Property",
+        "Warranties",
+        "Payment Terms",
+        "Dispute Resolution",
+        "Governing Law",
+        "Force Majeure",
+        "Assignment",
+        "Notices",
+        "Entire Agreement",
+        "Severability",
+        "Waiver",
+        "Insurance Requirements",
+        "Compliance with Laws",
+        "Data Protection",
+        "Audit Rights"
+    ]
+    
+    return [
+        {
+            'standard': name,
+            'clause': f"[PLACEHOLDER: Please configure SharePoint 'Preferred Contract Terms' list to load actual clause text for {name}]"
+        }
+        for name in fallback
+    ]
+
+
+def get_preferred_standards_dict() -> dict[str, str]:
+    """
+    Load preferred standards as a dictionary (for backward compatibility).
+    
+    Returns:
+        Dictionary mapping standard names to clause text.
+    """
+    standards_list = get_preferred_standards()
+    return {item['standard']: item['clause'] for item in standards_list}

@@ -152,12 +152,12 @@ def redirect_handler():
         # Store minimal user information in session
         session['access_token'] = result['access_token']
         
-        # Store token expiration in UTC to avoid timezone issues
-        from datetime import datetime, timedelta
+        # Store token expiration with timezone-aware UTC datetime
+        from datetime import datetime, timedelta, timezone as tz
         expires_in = result.get('expires_in', 3600)  # Default 1 hour
-        token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+        token_expires_at = datetime.now(tz.utc) + timedelta(seconds=expires_in)
         session['token_expires_at'] = token_expires_at.isoformat()
-        print(f"DEBUG: Token expires at: {token_expires_at} UTC (in {expires_in} seconds)")
+        print(f"DEBUG: Token expires at: {token_expires_at} (in {expires_in} seconds)")
         
         session['user_name'] = user_info.get('displayName', email.split('@')[0])
         session['user_email'] = email
