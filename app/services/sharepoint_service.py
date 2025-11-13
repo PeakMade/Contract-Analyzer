@@ -536,7 +536,7 @@ class SharePointService:
                         'business_terms': fields.get('BusinessTerms', ''),
                         'additional_notes': fields.get('AdditionalNotes', ''),
                         'risk_assignee': fields.get('RiskAssignee', ''),
-                        'estimated_review': fields.get('EstimatedReviewCompletion', ''),  # Corrected field name
+                        'estimated_review_completion': fields.get('EstimatedReviewCompletion', ''),
                         'document_url': fields.get('Document_x0020_Link', ''),  # Corrected field name
                         'file_name': filename,  # Corrected to lowercase
                         'completed_document_url': completed_doc_url
@@ -622,6 +622,7 @@ class SharePointService:
                         'status': fields.get('Status', 'SUBMITTED'),
                         'business_terms': fields.get('BusinessTerms', ''),
                         'additional_notes': fields.get('AdditionalNotes', ''),
+                        'estimated_review_completion': fields.get('EstimatedReviewCompletion', ''),
                         'document_url': fields.get('Document_x0020_Link', ''),
                         'file_name': fields.get('filename', 'Unknown'),
                         'fields': fields  # Include raw fields for download service
@@ -728,6 +729,7 @@ class SharePointService:
             print(f"Item ID: {item_id}")
             print(f"Field: {field_name}")
             print(f"Value: {value}")
+            print(f"Value type: {type(value)}")
             
             headers = {
                 'Authorization': f'Bearer {self.access_token}',
@@ -737,9 +739,16 @@ class SharePointService:
             # Update the item
             update_url = f"{self.graph_url}/sites/{self.site_id}/lists/{uploaded_contracts_list_id}/items/{item_id}/fields"
             
+            # Build payload - for multi-choice fields like BusinessTerms, we need to specify the OData type
             payload = {
                 field_name: value
             }
+            
+            # If the value is an array (multi-choice field), add the OData type annotation
+            if isinstance(value, list) and field_name == 'BusinessTerms':
+                payload[f'{field_name}@odata.type'] = 'Collection(Edm.String)'
+            
+            print(f"Payload: {payload}")
             
             response = requests.patch(update_url, headers=headers, json=payload)
             

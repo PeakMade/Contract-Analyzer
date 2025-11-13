@@ -132,6 +132,7 @@
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Date Requested</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Status</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Risk Assignee</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Est. Review Completion</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Business Terms</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Additional Notes</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Actions</th>
@@ -139,7 +140,7 @@
                             </thead>
                             <tbody id="contractsTableBody" style="background: white;">
                                 <tr>
-                                    <td colspan="11" class="text-center text-muted py-4">
+                                    <td colspan="12" class="text-center text-muted py-4">
                                         <div class="spinner-border" role="status">
                                             <span class="visually-hidden">Loading...</span>
                                         </div>
@@ -526,14 +527,62 @@ function buildBusinessTermsDropdown(currentBusinessTerms, contractId) {
         selectedTerms = currentBusinessTerms.split(',').map(term => term.trim());
     }
     
-    // Both admins and non-admins can edit Business Terms (it's their own contract data)
-    let options = '';
-    choices.forEach(choice => {
-        const selected = selectedTerms.includes(choice) ? 'selected' : '';
-        options += `<option value="${choice}" ${selected}>${choice}</option>`;
-    });
+    // Display current selection with edit button
+    const displayText = selectedTerms.length > 0 ? selectedTerms.join(', ') : 'None selected';
     
-    return `<select multiple class="form-select form-select-sm business-terms-select" data-contract-id="${contractId}" data-field="BusinessTerms" style="min-width: 180px; height: 60px;">${options}</select>`;
+    return `
+        <div class="business-terms-display">
+            <small style="display: block; margin-bottom: 4px;">${displayText}</small>
+            <button class="btn btn-sm btn-outline-primary" onclick="openBusinessTermsModal('${contractId}', ${JSON.stringify(selectedTerms).replace(/"/g, '&quot;')})" style="font-size: 0.75rem; padding: 2px 8px;">
+                <i class="fas fa-edit"></i> Edit
+            </button>
+        </div>
+    `;
+}
+
+function buildEstimatedReviewCompletion(currentDate, contractId) {
+    // Format date for display (YYYY-MM-DD format from SharePoint)
+    let displayDate = 'Not set';
+    let inputValue = '';
+    
+    if (currentDate) {
+        // SharePoint returns dates in ISO format (2025-11-13T00:00:00Z)
+        const dateObj = new Date(currentDate);
+        if (!isNaN(dateObj.getTime())) {
+            displayDate = dateObj.toLocaleDateString();
+            // Format for input type="date" (YYYY-MM-DD)
+            inputValue = dateObj.toISOString().split('T')[0];
+        }
+    }
+    
+    // Non-admins see read-only text
+    if (!isUserAdmin) {
+        return `<span class="text-muted">${displayDate}</span>`;
+    }
+    
+    // Admins get a date input
+    return `
+        <input type="date" 
+               class="form-control form-control-sm estimated-date-input" 
+               data-contract-id="${contractId}" 
+               data-field="EstimatedReviewCompletion" 
+               value="${inputValue}"
+               style="min-width: 140px; font-size: 0.85rem;"
+               onchange="updateDateField(this)">
+    `;
+}
+
+function updateDateField(inputElement) {
+    const contractId = inputElement.dataset.contractId;
+    const field = inputElement.dataset.field;
+    const value = inputElement.value;
+    
+    // Convert to ISO datetime format for SharePoint (add time component)
+    const isoValue = value ? value + 'T00:00:00Z' : null;
+    
+    console.log(`Updating ${field} to ${isoValue} for contract ${contractId}`);
+    
+    updateContractField(contractId, field, isoValue, inputElement);
 }
 
 function updateContractsTable(contracts) {
@@ -605,6 +654,9 @@ function updateContractsTable(contracts) {
                 </td>
                 <td style="border-color: #dee2e6;">
                     ${buildRiskAssigneeDropdown(contract.risk_assignee, contract.id)}
+                </td>
+                <td style="border-color: #dee2e6;">
+                    ${buildEstimatedReviewCompletion(contract.estimated_review_completion, contract.id)}
                 </td>
                 <td style="border-color: #dee2e6;">
                     ${buildBusinessTermsDropdown(contract.business_terms, contract.id)}
@@ -824,6 +876,100 @@ function uploadCompletedDocument(contractId, contractName) {
     .finally(() => {
         uploadBtn.innerHTML = originalHtml;
         uploadBtn.disabled = false;
+    });
+}
+
+// Business Terms Modal Functions
+function openBusinessTermsModal(contractId, selectedTerms) {
+    const choices = businessTermsChoices.length > 0 ? businessTermsChoices : 
+        ['Compensation', 'Scope of Services', 'Term (duration)', 'Payment Terms'];
+    
+    // Build checkbox list
+    let checkboxesHtml = '';
+    choices.forEach((choice, index) => {
+        const isChecked = selectedTerms.includes(choice) ? 'checked' : '';
+        checkboxesHtml += `
+            <div class="form-check mb-2">
+                <input class="form-check-input business-term-checkbox" type="checkbox" value="${choice}" id="bt-${contractId}-${index}" ${isChecked}>
+                <label class="form-check-label" for="bt-${contractId}-${index}">
+                    ${choice}
+                </label>
+            </div>
+        `;
+    });
+    
+    // Create modal HTML
+    const modalHtml = `
+        <div class="modal fade" id="businessTermsModal" tabindex="-1" aria-labelledby="businessTermsModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="businessTermsModalLabel">Edit Business Terms</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3">Select the business terms that have been reviewed and approved:</p>
+                        ${checkboxesHtml}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="saveBusinessTerms('${contractId}')">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('businessTermsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('businessTermsModal'));
+    modal.show();
+}
+
+function saveBusinessTerms(contractId) {
+    // Get all checked checkboxes
+    const checkedBoxes = document.querySelectorAll('.business-term-checkbox:checked');
+    const selectedTerms = Array.from(checkedBoxes).map(cb => cb.value);
+    
+    console.log('Saving Business Terms:', selectedTerms);
+    
+    // Update the field
+    fetch('/api/update-contract-field', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            contract_id: contractId,
+            field: 'BusinessTerms',
+            value: selectedTerms
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Successfully updated Business Terms');
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('businessTermsModal'));
+            modal.hide();
+            // Refresh table
+            loadDashboardData();
+        } else {
+            console.error('Error updating Business Terms:', data.error);
+            alert('Failed to update Business Terms. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while updating Business Terms. Please try again.');
     });
 }
 
