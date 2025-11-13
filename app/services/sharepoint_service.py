@@ -399,6 +399,7 @@ class SharePointService:
                     'file_name': safe_filename,
                     'file_url': document_url,
                     'file_id': file_info.get('id'),
+                    'drive_item': file_info,  # Full Graph API response for update_enhanced_document_link
                     'message': 'File uploaded successfully to ContractFiles'
                 }
             else:
@@ -518,9 +519,10 @@ class SharePointService:
                     
                     filename = fields.get('filename', 'Unknown')
                     
-                    # Check for completed document
-                    completed_doc_url = ''
-                    if fields.get('Status') == 'Completed':
+                    # Get completed document URL from EnhancedDocumentLink field
+                    # Fall back to constructed URL if field is empty (for backwards compatibility)
+                    completed_doc_url = fields.get('EnhancedDocumentLink', '')
+                    if not completed_doc_url and fields.get('Status') == 'Completed':
                         completed_doc_url = self.get_completed_document_url(filename)
                     
                     contract_info = {
@@ -766,6 +768,133 @@ class SharePointService:
             import traceback
             traceback.print_exc()
             return False
+    
+    def update_enhanced_document_link(self, item_id, drive_item):
+        """
+        Update the EnhancedDocumentLink field (Single line of text, max 255 chars) in SharePoint list.
+        
+        Args:
+            item_id (str): The SharePoint list item ID
+            drive_item (dict): The Graph API response for the uploaded enhanced file
+            
+        Returns:
+            None
+            
+        Raises:
+            ValueError: If URL exceeds 255 character limit
+            PermissionError: If session expired (401) or access denied (403)
+            FileNotFoundError: If item not found (404)
+            RuntimeError: For other errors
+        """
+        try:
+            # Ensure token is valid before making API calls
+            self._ensure_valid_token()
+            
+            uploaded_contracts_list_id = os.getenv('SP_LIST_ID')
+            site_id = os.getenv('O365_SITE_ID')
+            
+            if not uploaded_contracts_list_id:
+                raise RuntimeError("SP_LIST_ID not configured")
+            
+            if not site_id:
+                raise RuntimeError("O365_SITE_ID not configured")
+            
+            # Extract file info from drive_item
+            file_id = drive_item.get("id")
+            file_name = drive_item.get("name", "")
+            web_url = drive_item.get("webUrl", "")
+            
+            if not file_id or not file_name:
+                raise ValueError("drive_item missing 'id' or 'name' property")
+            
+            print(f"\n=== DEBUG update_enhanced_document_link ===")
+            print(f"Item ID: {item_id}")
+            print(f"File ID: {file_id}")
+            print(f"File Name: {file_name}")
+            print(f"Original webUrl length: {len(web_url)} chars")
+            
+            # Construct a shorter direct link using the drive and file ID
+            # Format: https://{tenant}.sharepoint.com/sites/{site}/ContractFiles/{filename}
+            site_url = os.getenv('SP_SITE_URL', '')
+            if not site_url:
+                raise RuntimeError("SP_SITE_URL not configured")
+            
+            # Build shorter URL: {site_url}/ContractFiles/{filename}
+            enhanced_url = f"{site_url}/ContractFiles/{file_name}"
+            
+            print(f"Constructed shorter URL: {enhanced_url}")
+            print(f"Shorter URL length: {len(enhanced_url)} characters")
+            
+            # One-time debug: Show why previous attempts with Doc.aspx URLs failed
+            print(f"\n⚠ URL Length Check:")
+            print(f"  Original webUrl length: {len(web_url)} chars (Doc.aspx viewer)")
+            print(f"  Constructed URL length: {len(enhanced_url)} chars (direct link)")
+            print(f"  SharePoint limit: 255 chars (Single line of text)")
+            print(f"  Status: {'✓ PASS' if len(enhanced_url) <= 255 else '✗ FAIL - URL TOO LONG'}")
+            
+            # Check 255 character limit for "Single line of text" field type
+            if len(enhanced_url) > 255:
+                error_msg = (
+                    f"Enhanced Document Link URL exceeds SharePoint 255 character limit. "
+                    f"URL length: {len(enhanced_url)} chars. "
+                    f"This field is 'Single line of text' and cannot store URLs longer than 255 characters. "
+                    f"The direct link format is shorter than Doc.aspx viewer, but still too long. "
+                    f"Consider changing the SharePoint field type to 'Hyperlink' instead of 'Single line of text'."
+                )
+                print(f"✗ {error_msg}")
+                raise ValueError(error_msg)
+            
+            headers = {
+                'Authorization': f'Bearer {self.access_token}',
+                'Content-Type': 'application/json'
+            }
+            
+            # PATCH to update the fields
+            update_url = f"{self.graph_url}/sites/{site_id}/lists/{uploaded_contracts_list_id}/items/{item_id}/fields"
+            
+            # EnhancedDocumentLink is "Single line of text" - send plain string
+            payload = {
+                "EnhancedDocumentLink": enhanced_url
+            }
+            
+            print(f"PATCH URL: {update_url}")
+            print(f"Payload keys: {list(payload.keys())}")
+            
+            response = requests.patch(update_url, headers=headers, json=payload)
+            
+            print(f"Response status: {response.status_code}")
+            
+            # Log short response snippet (without sensitive data)
+            if response.status_code not in (200, 204):
+                response_preview = response.text[:200] if response.text else "(empty)"
+                print(f"Response preview: {response_preview}")
+            
+            # Map status codes per requirements
+            if response.status_code in (200, 204):
+                print(f"✓ Successfully updated EnhancedDocumentLink")
+                return
+            elif response.status_code == 401:
+                print(f"✗ 401 Unauthorized - Session expired")
+                raise PermissionError("SESSION_EXPIRED")
+            elif response.status_code == 403:
+                print(f"✗ 403 Forbidden - Access denied")
+                raise PermissionError("ACCESS_DENIED")
+            elif response.status_code == 404:
+                print(f"✗ 404 Not Found - Item not found")
+                raise FileNotFoundError(f"List item {item_id} not found")
+            else:
+                error_msg = f"Failed to update EnhancedDocumentLink: HTTP {response.status_code}"
+                print(f"✗ {error_msg}")
+                raise RuntimeError(error_msg)
+                
+        except (ValueError, PermissionError, FileNotFoundError, RuntimeError):
+            # Re-raise expected exceptions
+            raise
+        except Exception as e:
+            print(f"Error updating enhanced document link: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise RuntimeError(f"Unexpected error: {str(e)}")
 
 # Initialize SharePoint service instance
 sharepoint_service = SharePointService()

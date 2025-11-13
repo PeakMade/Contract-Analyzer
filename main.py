@@ -290,10 +290,47 @@ def upload_completed_contract():
         )
         
         if upload_result['success']:
+            # Store the Enhanced Document Link in the Uploaded Contracts list
+            drive_item = upload_result.get('drive_item')
+            enhanced_url = upload_result.get('file_url', '')
+            
+            if drive_item:
+                print(f"Storing Enhanced Document Link from drive_item")
+                print(f"Contract Item ID: {contract_id}")
+                
+                try:
+                    # Update the EnhancedDocumentLink field (Single line of text, max 255 chars)
+                    sharepoint_service.update_enhanced_document_link(
+                        item_id=contract_id,
+                        drive_item=drive_item
+                    )
+                    print(f"✓ EnhancedDocumentLink stored successfully")
+                except ValueError as e:
+                    # URL too long for SharePoint Single line of text field
+                    print(f"⚠ URL exceeds 255 character limit: {str(e)}")
+                    # Non-critical - file uploaded successfully, just couldn't store link
+                    pass
+                except PermissionError as e:
+                    if "SESSION_EXPIRED" in str(e):
+                        print(f"⚠ Session expired while updating EnhancedDocumentLink")
+                        return jsonify({
+                            'success': False,
+                            'message': 'Session expired. Please sign in again.'
+                        }), 401
+                    else:
+                        print(f"⚠ Permission denied: {str(e)}")
+                        # Non-critical - file uploaded successfully, just couldn't update link
+                        pass
+                except (FileNotFoundError, RuntimeError) as e:
+                    print(f"⚠ Failed to update EnhancedDocumentLink: {str(e)}")
+                    # Non-critical - file uploaded successfully
+                    pass
+            
             return jsonify({
                 'success': True,
                 'message': 'Completed contract uploaded successfully',
-                'file_name': upload_result.get('file_name')
+                'file_name': upload_result.get('file_name'),
+                'file_url': enhanced_url
             })
         else:
             return jsonify({
