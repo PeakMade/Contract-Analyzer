@@ -415,6 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Dashboard functions
 let riskAssigneeChoices = [];
 let statusChoices = [];
+let isUserAdmin = false;
 
 function loadFieldChoices() {
     // Load Risk Assignee choices
@@ -451,6 +452,8 @@ function loadDashboardData() {
         .then(data => {
             if (data.success) {
                 const contracts = data.contracts;
+                isUserAdmin = data.is_admin || false;
+                console.log('User admin status:', isUserAdmin);
                 updateContractsTable(contracts);
             } else {
                 console.error('Failed to load contracts:', data.error);
@@ -467,6 +470,11 @@ function buildStatusDropdown(currentStatus, contractId) {
     const choices = statusChoices.length > 0 ? statusChoices : 
         ['Submitted', 'In Progress', 'Analyzed', 'Completed'];
     
+    // Non-admins see read-only badge
+    if (!isUserAdmin) {
+        return getStatusBadge(currentStatus);
+    }
+    
     let options = '';
     choices.forEach(choice => {
         const selected = choice === currentStatus ? 'selected' : '';
@@ -479,6 +487,11 @@ function buildStatusDropdown(currentStatus, contractId) {
 function buildRiskAssigneeDropdown(currentAssignee, contractId) {
     const choices = riskAssigneeChoices.length > 0 ? riskAssigneeChoices : 
         ['Jamie Torkelson', 'Jennifer Hill', 'Madi Barnett'];
+    
+    // Non-admins see read-only text
+    if (!isUserAdmin) {
+        return `<span class="text-muted">${currentAssignee || 'Not Assigned'}</span>`;
+    }
     
     let options = '<option value="">Not Assigned</option>';
     choices.forEach(choice => {
@@ -503,10 +516,48 @@ function updateContractsTable(contracts) {
         const businessTerms = Array.isArray(contract.business_terms) ? contract.business_terms.join(', ') : (contract.business_terms || 'None');
         const additionalNotes = contract.additional_notes || 'None';
         
-        // Make contract name clickable - link to standards page
-        const contractName = contract.contract_id ? 
-            `<a href="/contract/${contract.contract_id}/standards" style="color: #007bff; text-decoration: none; font-weight: 500;">${contract.name}</a>` : 
-            contract.name;
+        // Contract name - clickable for admins only
+        let contractName;
+        if (isUserAdmin && contract.contract_id) {
+            contractName = `<a href="/contract/${contract.contract_id}/standards" style="color: #007bff; text-decoration: none; font-weight: 500;">${contract.name}</a>`;
+        } else {
+            contractName = contract.name;
+        }
+        
+        // Action buttons - different for admin vs non-admin
+        let actionButtons;
+        if (isUserAdmin) {
+            actionButtons = `
+                <div class="btn-group btn-group-sm">
+                    <a href="${contract.document_url}" target="_blank" class="btn btn-outline-primary btn-sm" title="View Document">
+                        <i class="fas fa-file-alt"></i>
+                    </a>
+                    <button class="btn btn-outline-success btn-sm" onclick="triggerUploadCompleted('${contract.id}', '${contract.name}')" title="Upload Completed Document">
+                        <i class="fas fa-upload"></i>
+                    </button>
+                </div>
+                <input type="file" id="upload-${contract.id}" accept=".docx,.doc" style="display: none;" onchange="uploadCompletedDocument('${contract.id}', '${contract.name}')">
+            `;
+        } else {
+            // Non-admin: View Original and View Completed buttons
+            const completedDocUrl = contract.completed_document_url || '#';
+            const hasCompletedDoc = contract.completed_document_url && contract.completed_document_url !== '';
+            actionButtons = `
+                <div class="btn-group btn-group-sm">
+                    <a href="${contract.document_url}" target="_blank" class="btn btn-outline-primary btn-sm" title="View Original Document">
+                        <i class="fas fa-file-alt"></i>
+                    </a>
+                    ${hasCompletedDoc ? 
+                        `<a href="${completedDocUrl}" target="_blank" class="btn btn-outline-success btn-sm" title="View Completed Document">
+                            <i class="fas fa-file-check"></i>
+                        </a>` : 
+                        `<button class="btn btn-outline-secondary btn-sm" disabled title="No Completed Document">
+                            <i class="fas fa-file-check"></i>
+                        </button>`
+                    }
+                </div>
+            `;
+        }
         
         html += `
             <tr style="background: white; color: #333;">
@@ -525,15 +576,7 @@ function updateContractsTable(contracts) {
                 <td style="border-color: #dee2e6;"><small>${businessTerms}</small></td>
                 <td style="border-color: #dee2e6;"><small>${additionalNotes}</small></td>
                 <td style="border-color: #dee2e6;">
-                    <div class="btn-group btn-group-sm">
-                        <a href="${contract.document_url}" target="_blank" class="btn btn-outline-primary btn-sm" title="View Document">
-                            <i class="fas fa-file-alt"></i>
-                        </a>
-                        <button class="btn btn-outline-success btn-sm" onclick="triggerUploadCompleted('${contract.id}', '${contract.name}')" title="Upload Completed Document">
-                            <i class="fas fa-upload"></i>
-                        </button>
-                    </div>
-                    <input type="file" id="upload-${contract.id}" accept=".docx,.doc" style="display: none;" onchange="uploadCompletedDocument('${contract.id}', '${contract.name}')">
+                    ${actionButtons}
                 </td>
             </tr>
         `;

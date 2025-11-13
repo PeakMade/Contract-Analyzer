@@ -193,7 +193,8 @@ def get_contracts():
         return jsonify({
             'success': True,
             'contracts': contracts,
-            'count': len(contracts)
+            'count': len(contracts),
+            'is_admin': is_admin
         })
         
     except Exception as e:

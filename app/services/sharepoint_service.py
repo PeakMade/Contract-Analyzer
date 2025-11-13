@@ -421,6 +421,48 @@ class SharePointService:
                 'message': 'Failed to upload file to ContractFiles'
             }
     
+    def get_completed_document_url(self, filename):
+        """
+        Check if a completed version of the document exists in ContractFiles library
+        
+        Args:
+            filename: Original filename (e.g., "TestContract.docx")
+            
+        Returns:
+            str: URL to completed document if found, empty string otherwise
+        """
+        try:
+            # Ensure token is valid
+            self._ensure_valid_token()
+            
+            # Construct expected completed filename
+            base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
+            completed_filename = f"{base_name}_completed.docx"
+            
+            # Sanitize filename
+            safe_filename = "".join(c if c.isalnum() or c in (' ', '-', '_', '.') else '-' for c in completed_filename)
+            safe_filename = safe_filename.replace(' ', '_')
+            safe_filename = safe_filename.replace(':', '-')
+            
+            # Try to get file info from ContractFiles
+            file_url = f"{self.graph_url}/drives/{self.drive_id}/root:/{safe_filename}"
+            
+            headers = {
+                'Authorization': f'Bearer {self.access_token}'
+            }
+            
+            response = requests.get(file_url, headers=headers)
+            
+            if response.status_code == 200:
+                file_info = response.json()
+                return file_info.get('webUrl', '')
+            else:
+                return ''
+                
+        except Exception as e:
+            print(f"Error checking for completed document: {str(e)}")
+            return ''
+    
     def get_contract_files(self, limit=50, user_email=None, is_admin=False):
         """
         Retrieve list of contract records from the specific SharePoint list
@@ -474,6 +516,13 @@ class SharePointService:
                         if item_submitter != user_email.lower():
                             continue  # Skip this item
                     
+                    filename = fields.get('filename', 'Unknown')
+                    
+                    # Check for completed document
+                    completed_doc_url = ''
+                    if fields.get('Status') == 'Completed':
+                        completed_doc_url = self.get_completed_document_url(filename)
+                    
                     contract_info = {
                         'id': item['id'],
                         'contract_id': fields.get('ContractID', 'N/A'),
@@ -489,7 +538,8 @@ class SharePointService:
                         'risk_assignee': fields.get('RiskAssignee', ''),
                         'estimated_review': fields.get('EstimatedReviewCompletion', ''),  # Corrected field name
                         'document_url': fields.get('Document_x0020_Link', ''),  # Corrected field name
-                        'file_name': fields.get('filename', 'Unknown')  # Corrected to lowercase
+                        'file_name': filename,  # Corrected to lowercase
+                        'completed_document_url': completed_doc_url
                     }
                     contract_list.append(contract_info)
                 
