@@ -415,6 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Dashboard functions
 let riskAssigneeChoices = [];
 let statusChoices = [];
+let businessTermsChoices = [];
 let isUserAdmin = false;
 
 function loadFieldChoices() {
@@ -439,11 +440,22 @@ function loadFieldChoices() {
             }
         })
         .catch(error => console.error('Error loading Status choices:', error));
+    
+    // Load Business Terms choices
+    fetch('/api/field-choices/BusinessTerms')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.choices.length > 0) {
+                businessTermsChoices = data.choices;
+                console.log('Loaded Business Terms choices:', businessTermsChoices);
+            }
+        })
+        .catch(error => console.error('Error loading Business Terms choices:', error));
 }
 
 function loadDashboardData() {
     // Load field choices first if not already loaded
-    if (riskAssigneeChoices.length === 0 || statusChoices.length === 0) {
+    if (riskAssigneeChoices.length === 0 || statusChoices.length === 0 || businessTermsChoices.length === 0) {
         loadFieldChoices();
     }
     
@@ -502,6 +514,28 @@ function buildRiskAssigneeDropdown(currentAssignee, contractId) {
     return `<select class="form-select form-select-sm risk-assignee-select" data-contract-id="${contractId}" data-field="RiskAssignee" style="min-width: 150px;">${options}</select>`;
 }
 
+function buildBusinessTermsDropdown(currentBusinessTerms, contractId) {
+    const choices = businessTermsChoices.length > 0 ? businessTermsChoices : 
+        ['Compensation', 'Scope of Services', 'Term (duration)', 'Payment Terms'];
+    
+    // Parse current business terms - could be array or comma-separated string
+    let selectedTerms = [];
+    if (Array.isArray(currentBusinessTerms)) {
+        selectedTerms = currentBusinessTerms;
+    } else if (typeof currentBusinessTerms === 'string' && currentBusinessTerms !== 'None') {
+        selectedTerms = currentBusinessTerms.split(',').map(term => term.trim());
+    }
+    
+    // Both admins and non-admins can edit Business Terms (it's their own contract data)
+    let options = '';
+    choices.forEach(choice => {
+        const selected = selectedTerms.includes(choice) ? 'selected' : '';
+        options += `<option value="${choice}" ${selected}>${choice}</option>`;
+    });
+    
+    return `<select multiple class="form-select form-select-sm business-terms-select" data-contract-id="${contractId}" data-field="BusinessTerms" style="min-width: 180px; height: 60px;">${options}</select>`;
+}
+
 function updateContractsTable(contracts) {
     const tableBody = document.getElementById('contractsTableBody');
     
@@ -513,7 +547,6 @@ function updateContractsTable(contracts) {
     let html = '';
     contracts.forEach(contract => {
         const statusBadge = getStatusBadge(contract.status);
-        const businessTerms = Array.isArray(contract.business_terms) ? contract.business_terms.join(', ') : (contract.business_terms || 'None');
         const additionalNotes = contract.additional_notes || 'None';
         
         // Contract name - clickable for admins only
@@ -573,7 +606,9 @@ function updateContractsTable(contracts) {
                 <td style="border-color: #dee2e6;">
                     ${buildRiskAssigneeDropdown(contract.risk_assignee, contract.id)}
                 </td>
-                <td style="border-color: #dee2e6;"><small>${businessTerms}</small></td>
+                <td style="border-color: #dee2e6;">
+                    ${buildBusinessTermsDropdown(contract.business_terms, contract.id)}
+                </td>
                 <td style="border-color: #dee2e6;"><small>${additionalNotes}</small></td>
                 <td style="border-color: #dee2e6;">
                     ${actionButtons}
@@ -638,20 +673,32 @@ function updateContractField(contractId, field, value, targetElement) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            console.log(`Successfully updated ${field} to ${value}`);
+            console.log(`Successfully updated ${field} to ${Array.isArray(value) ? JSON.stringify(value) : value}`);
             // Store the new value as original
-            targetElement.dataset.originalValue = value;
+            targetElement.dataset.originalValue = Array.isArray(value) ? JSON.stringify(value) : value;
         } else {
             console.error(`Error updating ${field}:`, data.error);
             // Revert to original value
-            targetElement.value = originalValue;
+            revertFieldValue(targetElement, originalValue);
         }
     })
     .catch(error => {
         console.error('Error:', error);
         // Revert to original value
-        targetElement.value = originalValue;
+        revertFieldValue(targetElement, originalValue);
     });
+}
+
+function revertFieldValue(element, originalValue) {
+    // Handle multi-select differently
+    if (element.multiple) {
+        const originalValues = JSON.parse(originalValue);
+        Array.from(element.options).forEach(option => {
+            option.selected = originalValues.includes(option.value);
+        });
+    } else {
+        element.value = originalValue;
+    }
 }
 
 // Add event listeners for dropdown changes
@@ -675,6 +722,21 @@ function attachFieldUpdateListeners() {
             const field = this.dataset.field;
             const value = this.value;
             updateContractField(contractId, field, value, this);
+        });
+    });
+    
+    // Business Terms dropdowns (multi-select)
+    document.querySelectorAll('.business-terms-select').forEach(select => {
+        // Store original selected options
+        const originalValues = Array.from(select.selectedOptions).map(opt => opt.value);
+        select.dataset.originalValue = JSON.stringify(originalValues);
+        
+        select.addEventListener('change', function(e) {
+            const contractId = this.dataset.contractId;
+            const field = this.dataset.field;
+            // Get all selected values as an array
+            const selectedValues = Array.from(this.selectedOptions).map(opt => opt.value);
+            updateContractField(contractId, field, selectedValues, this);
         });
     });
 }
