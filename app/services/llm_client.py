@@ -16,18 +16,26 @@ logger = logging.getLogger(__name__)
 client: Optional[OpenAI] = None
 
 # OpenAI prompt templates
-SYSTEM_PROMPT = "You are a legal contract analyst. Return ONLY valid JSON matching the schema."
+SYSTEM_PROMPT = "You are a legal contract analyst specializing in clause identification and drafting. Return ONLY valid JSON matching the required schema."
 
-USER_PROMPT_TEMPLATE = '''Analyze the contract text for a "{standard}" clause.
+USER_PROMPT_TEMPLATE = '''Analyze the contract for a "{standard}" clause.
 
-Return JSON: {{"found": true|false, "excerpt": string|null, "location": string|null, "suggestion": string|null}}
+INSTRUCTIONS:
+1. Search thoroughly for any clause related to "{standard}"
+2. If FOUND:
+   - Extract the EXACT text (do not paraphrase)
+   - Identify the section/location (e.g., "Section 5.2", or null if unclear)
+   - Set "found": true, "suggestion": null
+3. If NOT FOUND:
+   - Set "found": false, "excerpt": null, "location": null
+   - Draft a complete, professionally worded suggested clause
+   - Use proper legal terminology; avoid party names or specific dates
 
-Constraints:
-- If found: excerpt is the exact clause snippet; location like "Section 5.2" if visible, else null; suggestion must be null.
-- If not found: excerpt and location are null; suggestion is a concise, legally neutral clause, no party names, no dates.
-- Do not include the entire contract in the response.
+CRITICAL: Extract exact text. Do not include the entire contract in your response.
 
-Contract:
+Return JSON: {{"found": boolean, "excerpt": string|null, "location": string|null, "suggestion": string|null}}
+
+CONTRACT TEXT:
 {contract_text}'''
 
 
