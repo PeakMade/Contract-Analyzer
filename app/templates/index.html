@@ -527,8 +527,13 @@ function buildBusinessTermsDropdown(currentBusinessTerms, contractId) {
         selectedTerms = currentBusinessTerms.split(',').map(term => term.trim());
     }
     
-    // Display current selection with edit button
-    const displayText = selectedTerms.length > 0 ? selectedTerms.join(', ') : 'None selected';
+    // Display current selection with each term on its own line
+    let displayText;
+    if (selectedTerms.length > 0) {
+        displayText = selectedTerms.map(term => `<div style="margin-bottom: 2px;">${term}</div>`).join('');
+    } else {
+        displayText = '<div>None selected</div>';
+    }
     
     return `
         <div class="business-terms-display">
