@@ -203,7 +203,66 @@
 {% endif %}
 {% endfor %}
 
+<!-- Download Ready Modal -->
+<div class="modal fade" id="downloadReadyModal" tabindex="-1" aria-labelledby="downloadReadyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="downloadReadyModalLabel">
+                    <i class="bi bi-check-circle-fill me-2"></i>Document Ready
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="mb-3">
+                    <i class="bi bi-file-earmark-check" style="font-size: 3rem; color: #28a745;"></i>
+                </div>
+                <h6 class="mb-3">Suggestions Applied Successfully!</h6>
+                <p class="text-muted mb-2" id="downloadModalMessage">
+                    <!-- Dynamic message inserted here -->
+                </p>
+                <p class="mb-4">
+                    <strong id="downloadModalFilename" style="color: #495057;"></strong>
+                </p>
+                <div class="alert alert-info small mb-0">
+                    <i class="bi bi-cloud-upload"></i> Document has been automatically uploaded to SharePoint
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="downloadModalBtn">
+                    <i class="bi bi-download me-2"></i>Download Document
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+// Function to show download modal
+function showDownloadModal(downloadUrl, filename, standardsApplied) {
+    // Update modal content
+    const messageEl = document.getElementById('downloadModalMessage');
+    const filenameEl = document.getElementById('downloadModalFilename');
+    const downloadBtn = document.getElementById('downloadModalBtn');
+    
+    messageEl.textContent = `Successfully applied ${standardsApplied} standard${standardsApplied !== 1 ? 's' : ''} to your contract.`;
+    filenameEl.textContent = filename;
+    
+    // Set up download button
+    downloadBtn.onclick = function() {
+        window.location.href = downloadUrl;
+        // Close modal after initiating download
+        setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('downloadReadyModal')).hide();
+        }, 500);
+    };
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('downloadReadyModal'));
+    modal.show();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const checkboxes = document.querySelectorAll('.apply-checkbox');
     const selectAllBtn = document.getElementById('selectAllBtn');
@@ -296,17 +355,12 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             if (data.success && data.download_url) {
-                // Show success message
-                alert(`✅ Successfully applied ${data.standards_applied} standard${data.standards_applied !== 1 ? 's' : ''}!\n\nDownloading edited document: ${data.filename}`);
+                // Show modal with download button instead of auto-download
+                showDownloadModal(data.download_url, data.filename, data.standards_applied);
                 
-                // Trigger download
-                window.location.href = data.download_url;
-                
-                // Reset button after delay
-                setTimeout(() => {
-                    applyBtn.innerHTML = originalText;
-                    applyBtn.disabled = false;
-                }, 2000);
+                // Reset button
+                applyBtn.innerHTML = originalText;
+                applyBtn.disabled = false;
             } else {
                 throw new Error('Invalid response from server');
             }
