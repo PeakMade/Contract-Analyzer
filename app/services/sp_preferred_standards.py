@@ -11,9 +11,12 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 logger = logging.getLogger(__name__)
 
 
-def _get_bearer_token() -> str:
+def _get_bearer_token(access_token=None) -> str:
     """
-    Retrieve bearer token from Flask session.
+    Retrieve bearer token from parameter or Flask session.
+    
+    Args:
+        access_token: Optional token to use instead of reading from session
     
     Returns:
         Bearer token string.
@@ -21,6 +24,9 @@ def _get_bearer_token() -> str:
     Note:
         Returns empty string if token unavailable (non-fatal for this service).
     """
+    if access_token is not None:
+        return access_token
+    
     token = session.get('access_token')
     if not token:
         logger.warning("No access token found in session for preferred standards lookup")
@@ -79,12 +85,15 @@ def _fetch_preferred_standards_list(token: str, list_id: str) -> dict:
     return response.json()
 
 
-def get_preferred_standards() -> list[dict]:
+def get_preferred_standards(access_token=None) -> list[dict]:
     """
     Load preferred (gold standard) clauses from SharePoint list.
     
     Returns a list of dictionaries with standard names and their clause text.
     On failure, returns empty list and logs a warning (non-fatal).
+    
+    Args:
+        access_token: Optional token to use (for background threads)
     
     Returns:
         List like [
@@ -100,7 +109,7 @@ def get_preferred_standards() -> list[dict]:
             return []
         
         # Get token
-        token = _get_bearer_token()
+        token = _get_bearer_token(access_token)
         if not token:
             logger.warning("No bearer token available, skipping preferred standards lookup")
             return []
@@ -196,12 +205,15 @@ def _get_fallback_standards() -> list[dict]:
     ]
 
 
-def get_preferred_standards_dict() -> dict[str, str]:
+def get_preferred_standards_dict(access_token=None) -> dict[str, str]:
     """
     Load preferred standards as a dictionary (for backward compatibility).
+    
+    Args:
+        access_token: Optional token to use (for background threads)
     
     Returns:
         Dictionary mapping standard names to clause text.
     """
-    standards_list = get_preferred_standards()
+    standards_list = get_preferred_standards(access_token)
     return {item['standard']: item['clause'] for item in standards_list}

@@ -19,19 +19,26 @@ class DownloadError(Exception):
     pass
 
 
-def _get_bearer_token() -> str:
+def _get_bearer_token(access_token=None) -> str:
     """
-    Retrieve bearer token from Flask session and check if it's expired.
+    Retrieve bearer token from parameter or Flask session and check if it's expired.
+    
+    Args:
+        access_token: Optional token to use instead of reading from session
     
     Raises:
         PermissionError: If token is missing or expired.
     """
     from datetime import datetime, timezone
     
-    token = session.get('access_token')
+    # Use provided token or fall back to session
+    if access_token is None:
+        token = session.get('access_token')
+    else:
+        token = access_token
     
     if not token:
-        logger.warning("No access token found in session")
+        logger.warning("No access token found")
         raise PermissionError("SESSION_EXPIRED")
     
     # Check if token is expired (if expiration time is stored)
@@ -368,7 +375,7 @@ def _download_file_content(url: str, token: str, retry_with_refresh: bool = True
         raise RuntimeError("Failed to download contract file")
 
 
-def download_contract(contract_id: str) -> Path:
+def download_contract(contract_id: str, access_token: str = None) -> Path:
     """
     Download a contract file from SharePoint using delegated user token.
     
@@ -380,6 +387,8 @@ def download_contract(contract_id: str) -> Path:
     
     Args:
         contract_id: The SharePoint list item ID.
+        access_token: Optional access token (for use in background threads).
+                     If None, will read from Flask session.
     
     Returns:
         Path to the temporary file containing the contract.
@@ -392,8 +401,8 @@ def download_contract(contract_id: str) -> Path:
     start_time = time.time()
     
     try:
-        # Get bearer token from session
-        token = _get_bearer_token()
+        # Get bearer token from parameter or session
+        token = _get_bearer_token(access_token)
         
         # Get contract metadata
         from app.services.sharepoint_service import SharePointService
