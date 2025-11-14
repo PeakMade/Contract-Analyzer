@@ -128,6 +128,8 @@ def _call_openai(system_prompt: str, user_prompt: str, model: str) -> str:
     try:
         client = _get_client()
         
+        logger.info(f"Making OpenAI API request: model={model}, timeout=30s")
+        
         response = client.chat.completions.create(
             model=model,
             messages=[
@@ -146,30 +148,21 @@ def _call_openai(system_prompt: str, user_prompt: str, model: str) -> str:
             timeout=30.0
         )
         
-        return response.choices[0].message.content
+        response_content = response.choices[0].message.content
+        logger.info(f"OpenAI API request completed successfully, response length: {len(response_content)} chars")
         
-    except (openai.RateLimitError, openai.APIError):
+        return response_content
+        
+    except (openai.RateLimitError, openai.APIError) as e:
+        logger.warning(f"OpenAI API error (will retry): {type(e).__name__} - {str(e)}")
         raise  # Will be retried by tenacity
-    except openai.APITimeoutError:
-        logger.error("OpenAI API request timed out")
+    except openai.APITimeoutError as e:
+        logger.error(f"OpenAI API request timed out after 30s: {str(e)}")
         raise RuntimeError("AI analysis request timed out")
     except Exception as e:
-        # Enhanced error logging for debugging
-        import traceback
-        error_type = type(e).__name__
-        error_msg = str(e)
-        stack_trace = traceback.format_exc()
-        
-        logger.error(f"OpenAI API call failed: {error_type}")
-        logger.error(f"Error message: {error_msg}")
-        logger.error(f"Stack trace:\n{stack_trace}")
-        
-        print(f"DEBUG llm_client: OpenAI API Error Details:")
-        print(f"  Type: {error_type}")
-        print(f"  Message: {error_msg}")
-        print(f"  Full trace:\n{stack_trace}")
-        
-        raise RuntimeError(f"AI analysis service error: {error_type} - {error_msg}")
+        # Log full exception with stack trace for Azure logs
+        logger.exception(f"OpenAI API call failed with unexpected error: {type(e).__name__}")
+        raise RuntimeError(f"AI analysis service error: {type(e).__name__} - {str(e)}")
 
 
 def analyze_standard(text: str, standard: str) -> dict:
@@ -194,6 +187,7 @@ def analyze_standard(text: str, standard: str) -> dict:
     
     try:
         model = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
+        text_length = len(text)
         
         # Construct user prompt from template
         user_prompt = USER_PROMPT_TEMPLATE.format(
@@ -201,35 +195,49 @@ def analyze_standard(text: str, standard: str) -> dict:
             contract_text=text[:50000]  # Limit to ~50k chars to avoid token limits
         )
         
+        # Log before making OpenAI API call
+        logger.info(f"Calling OpenAI API: model={model}, standard='{standard}', text_length={text_length}")
+        
         # Call OpenAI with strict JSON response format
-        logger.info(f"Analyzing standard: {standard}")
-        response_text = _call_openai(SYSTEM_PROMPT, user_prompt, model)
+        try:
+            response_text = _call_openai(SYSTEM_PROMPT, user_prompt, model)
+            logger.info(f"OpenAI API call successful for standard '{standard}'")
+        except Exception as api_error:
+            logger.exception(f"OpenAI API call failed for standard '{standard}'")
+            raise
         
         # Parse and validate JSON response
         try:
             result = _validate_json_response(response_text)
+            logger.info(f"JSON response validated successfully for standard '{standard}'")
         except ValueError as e:
             # Retry once with explicit "Return ONLY valid JSON" suffix
-            logger.warning(f"First attempt failed validation: {e}. Retrying with explicit instruction.")
+            logger.warning(f"First JSON validation failed for '{standard}': {e}. Retrying with explicit instruction.")
             
             retry_user_prompt = user_prompt + "\n\nReturn ONLY valid JSON."
-            response_text = _call_openai(SYSTEM_PROMPT, retry_user_prompt, model)
-            result = _validate_json_response(response_text)
+            try:
+                response_text = _call_openai(SYSTEM_PROMPT, retry_user_prompt, model)
+                result = _validate_json_response(response_text)
+                logger.info(f"Retry successful for standard '{standard}'")
+            except Exception as retry_error:
+                logger.exception(f"Retry failed for standard '{standard}'")
+                raise
         
         duration = time.time() - start_time
         logger.info(
-            f"Analysis complete: standard={standard}, found={result['found']}, "
-            f"duration={duration:.2f}s"
+            f"Analysis complete: standard='{standard}', found={result['found']}, "
+            f"duration={duration:.2f}s, model={model}"
         )
         
         return result
         
     except (ValueError, RuntimeError):
+        duration = time.time() - start_time
+        logger.error(f"Analysis failed for '{standard}' after {duration:.2f}s")
         raise
     except Exception as e:
         duration = time.time() - start_time
-        logger.error(
-            f"Analysis failed: standard={standard}, duration={duration:.2f}s, "
-            f"error={type(e).__name__}"
+        logger.exception(
+            f"Unexpected error analyzing standard '{standard}' after {duration:.2f}s"
         )
-        raise RuntimeError("Failed to analyze standard")
+        raise RuntimeError(f"Failed to analyze standard '{standard}': {type(e).__name__}")

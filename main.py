@@ -1,5 +1,7 @@
 from flask import Flask, render_template, session, request, jsonify, flash, redirect, url_for
 import os
+import sys
+import logging
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -22,6 +24,19 @@ app = Flask(__name__, static_folder='app/static', template_folder='app/templates
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key')
 print(f"DEBUG: Flask app created")
 print(f"DEBUG: SECRET_KEY set: {bool(app.secret_key)}")
+
+# Configure logging to stdout/stderr for Azure App Service
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+# Set Flask app logger
+app.logger.setLevel(logging.INFO)
+app.logger.info("Flask application initialized with logging configured for Azure App Service")
 
 # Configure session to handle large data
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
@@ -509,43 +524,42 @@ def analyze_contract_route(contract_id):
     temp_file_path = None
     
     try:
-        print(f"\n=== DEBUG analyze_contract ===")
-        print(f"Contract ID: {contract_id}")
+        app.logger.info(f"=== Starting contract analysis for contract_id={contract_id} ===")
         
         # Initialize progress
         analysis_progress.set_progress(contract_id, 5, "Initializing analysis")
         
         # Get all selected standards from form (includes both default and custom standards)
         all_standards = request.form.getlist('standards')
-        
-        print(f"Total standards selected: {len(all_standards)}")
+        app.logger.info(f"Analysis initiated: {len(all_standards)} standards selected")
         
         if not all_standards:
+            app.logger.warning(f"No standards selected for contract {contract_id}")
             analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="No standards selected")
             flash('Please select at least one standard to analyze', 'warning')
             return redirect(url_for('contract_standards', contract_id=contract_id))
         
         # Download contract from SharePoint
-        print(f"Downloading contract {contract_id} from SharePoint...")
+        app.logger.info(f"Step 1/4: Downloading contract {contract_id} from SharePoint...")
         analysis_progress.set_progress(contract_id, 20, "Downloading document")
         temp_file_path = download_contract(contract_id)
-        print(f"Contract downloaded to: {temp_file_path}")
+        app.logger.info(f"Contract downloaded successfully to: {temp_file_path}")
         
         # Extract text from contract
-        print(f"Extracting text from contract...")
+        app.logger.info(f"Step 2/4: Extracting text from contract...")
         analysis_progress.set_progress(contract_id, 40, "Extracting text")
         contract_text = extract_text(temp_file_path)
-        print(f"Extracted {len(contract_text)} characters")
+        app.logger.info(f"Text extraction complete: {len(contract_text)} characters extracted")
         
         # Get preferred standards from SharePoint (as dict for analysis)
-        print(f"Loading preferred standards from SharePoint...")
+        app.logger.info(f"Step 3/4: Loading preferred standards from SharePoint...")
         preferred_standards_dict = get_preferred_standards_dict()
-        print(f"Loaded {len(preferred_standards_dict)} preferred standards")
+        app.logger.info(f"Preferred standards loaded: {len(preferred_standards_dict)} standards available")
         
         # Run AI analysis with progress tracking
-        print(f"Running AI analysis for {len(all_standards)} standards...")
+        app.logger.info(f"Step 4/4: Starting AI analysis for {len(all_standards)} standards...")
         analysis_results = run_analysis(contract_text, all_standards, preferred_standards_dict, contract_id)
-        print(f"Analysis complete: {len(analysis_results)} results")
+        app.logger.info(f"AI analysis complete: {len(analysis_results)} results generated")
         
         # Cache the results with 30-minute TTL
         cache_data = {
@@ -554,64 +568,66 @@ def analyze_contract_route(contract_id):
             'ts': datetime.utcnow().isoformat()
         }
         analysis_cache.set(contract_id, cache_data, ttl=1800)
-        print(f"Results cached for contract {contract_id}")
+        app.logger.info(f"Analysis results cached for contract {contract_id}")
         
         # Update status to "In progress" in SharePoint (matches SharePoint choice field)
-        # First get the contract to obtain the SharePoint list item ID
-        print(f"Updating status to 'In progress' for contract {contract_id}...")
+        app.logger.info(f"Updating contract status to 'In progress' for contract {contract_id}...")
         analysis_progress.set_progress(contract_id, 100, "Finalizing results", done=True)
         contract = sharepoint_service.get_contract_by_id(contract_id)
         if contract and 'id' in contract:
             status_updated = sharepoint_service.update_contract_field(contract['id'], 'Status', 'In progress')
             if status_updated:
-                print(f"✓ Status updated to 'In progress'")
+                app.logger.info(f"Contract status updated to 'In progress' successfully")
             else:
-                print(f"⚠ Failed to update status (non-critical)")
+                app.logger.warning(f"Failed to update contract status (non-critical)")
         else:
-            print(f"⚠ Could not retrieve contract ID for status update (non-critical)")
+            app.logger.warning(f"Could not retrieve contract for status update (non-critical)")
         
         # Clean up temporary file
         if temp_file_path and Path(temp_file_path).exists():
             Path(temp_file_path).unlink()
-            print(f"Cleaned up temporary file: {temp_file_path}")
+            app.logger.info(f"Temporary file cleaned up: {temp_file_path}")
         
+        app.logger.info(f"=== Contract analysis completed successfully for contract_id={contract_id} ===")
         flash('✅ AI analysis completed successfully!', 'success')
         return redirect(url_for('apply_suggestions_new', contract_id=contract_id))
         
     except PermissionError as e:
         if "SESSION_EXPIRED" in str(e):
+            app.logger.warning(f"Session expired during analysis for contract {contract_id}")
             analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="Session expired")
             flash('Session expired — please sign in again.', 'warning')
             return redirect(url_for('auth.login'))
         else:
-            print(f"Permission error in analyze_contract: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            app.logger.exception(f"Permission error during contract analysis for contract {contract_id}")
             analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="Permission denied")
             flash('You do not have permission to access this contract.', 'error')
             return redirect(url_for('contract_standards', contract_id=contract_id))
             
     except FileNotFoundError as e:
-        print(f"File not found in analyze_contract: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        app.logger.exception(f"Contract file not found for contract {contract_id}")
         analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="Contract file not found")
         flash('Contract file not found in SharePoint.', 'error')
         return redirect(url_for('contract_standards', contract_id=contract_id))
         
     except RuntimeError as e:
-        print(f"Runtime error in analyze_contract: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        app.logger.exception(f"Runtime error during contract analysis for contract {contract_id}")
         analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="Document processing failed")
         flash('Could not process the document.', 'error')
         return redirect(url_for('contract_standards', contract_id=contract_id))
         
     except Exception as e:
-        print(f"Unexpected error in analyze_contract: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        app.logger.exception(f"Unexpected error during contract analysis for contract {contract_id}")
         analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="Analysis failed unexpectedly")
+        
+        # Return JSON error response for better debugging
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({
+                'success': False,
+                'error': 'Analysis failed unexpectedly',
+                'details': str(e)
+            }), 500
+        
         flash('Analysis failed; please try again.', 'error')
         return redirect(url_for('contract_standards', contract_id=contract_id))
         
@@ -621,8 +637,9 @@ def analyze_contract_route(contract_id):
             try:
                 if Path(temp_file_path).exists():
                     Path(temp_file_path).unlink()
+                    app.logger.debug(f"Temporary file cleanup successful in finally block")
             except Exception as cleanup_error:
-                print(f"Warning: Failed to clean up temporary file: {cleanup_error}")
+                app.logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
 
 @app.route('/apply_suggestions_new/<contract_id>')
 @login_required

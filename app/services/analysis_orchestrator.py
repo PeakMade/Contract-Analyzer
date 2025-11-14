@@ -151,7 +151,8 @@ def analyze_contract(
     total_standards = len(standards)
     
     for i, standard in enumerate(standards, 1):
-        logger.info(f"Analyzing standard {i}/{len(standards)}: {standard}")
+        # Log each AI analysis attempt with index and standard name
+        logger.info(f"AI analyze {i}/{total_standards}: {standard}")
         
         # Update progress (40% to 90% range during AI analysis)
         if contract_id:
@@ -163,30 +164,35 @@ def analyze_contract(
         
         try:
             # Analyze with LLM (handles chunking internally)
+            logger.info(f"Calling OpenAI API for standard '{standard}'...")
             result = _analyze_standard_with_chunks(text, standard, analyze_standard)
             
             if not result['found']:
                 # Standard not found in contract
                 if is_preferred_standard:
                     # Use SharePoint clause directly (don't use AI suggestion)
-                    logger.info(f"Using SharePoint preferred clause for: {standard}")
+                    logger.info(f"Standard '{standard}' not found - using SharePoint preferred clause")
                     result['suggestion'] = preferred[standard]
                     result['source'] = 'sharepoint'
                 else:
                     # Custom standard - keep AI-generated suggestion
-                    logger.info(f"Using AI-generated suggestion for custom standard: {standard}")
+                    logger.info(f"Standard '{standard}' not found - using AI-generated suggestion")
                     result['source'] = 'ai'
             else:
                 # Standard found - mark source appropriately
                 result['source'] = 'sharepoint' if is_preferred_standard else 'ai'
+                logger.info(f"Standard '{standard}' found in contract")
             
             results[standard] = result
+            logger.info(f"Successfully analyzed standard {i}/{total_standards}: {standard}")
             
         except Exception as e:
-            logger.error(f"Failed to analyze standard '{standard}': {e}")
+            # Log the exception but don't raise - continue with other standards
+            logger.exception(f"Failed to analyze standard '{standard}' ({i}/{total_standards})")
             
             # Use preferred clause if available, otherwise provide error message
             if is_preferred_standard:
+                logger.info(f"Using fallback SharePoint clause for failed standard: {standard}")
                 results[standard] = {
                     'found': False,
                     'excerpt': None,
@@ -195,6 +201,7 @@ def analyze_contract(
                     'source': 'sharepoint'
                 }
             else:
+                logger.warning(f"No fallback available for failed custom standard: {standard}")
                 results[standard] = {
                     'found': False,
                     'excerpt': None,
