@@ -80,7 +80,9 @@
             width: 100%;
             max-width: none;
             padding: 15px 40px;
+            padding-top: 60px; /* Add space at top for user button */
             margin: 0;
+            position: relative; /* Allow absolute positioning of children */
         }
         
         /* Card styling */
@@ -151,81 +153,141 @@
             }
         }
         
-        /* User info styling - moved outside header */
+        /* User info styling - below header like Redpoint example */
         .user-info-container {
-            position: fixed;
-            top: 85px;
-            right: 20px;
-            z-index: 1000;
-            background: #6c757d;
-            color: white;
-            padding: 8px 15px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 40px;
+            display: flex;
+            justify-content: flex-end;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         
         .user-info-container .user-name {
-            font-weight: 600;
-            color: white;
+            font-weight: 500;
+            color: #333;
             display: block;
         }
         
         .user-info-text {
             display: flex;
-            flex-direction: column;
-            align-items: flex-start;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
             line-height: 1.3;
         }
         
         .admin-badge {
-            font-size: 0.75rem;
-            color: #ffd700;
-            font-weight: 500;
+            font-size: 0.7rem;
+            color: #d81b60;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-top: 2px;
+            background: rgba(216, 27, 96, 0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
         }
         
         .user-dropdown {
             position: relative;
-            display: inline-block;
+            margin: 0;
         }
-        
+       
         .user-dropdown-toggle {
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 0.9rem;
-            padding: 4px 8px;
+            background: white;
+            border: 1px solid #dee2e6;
             border-radius: 4px;
-            transition: background-color 0.3s ease;
+            padding: 6px 12px;
+            font-size: 13px;
+            color: #495057;
+            cursor: pointer;
             display: flex;
             align-items: center;
             gap: 8px;
+            transition: all 0.2s ease;
         }
-        
+       
         .user-dropdown-toggle:hover {
-            background-color: rgba(255, 255, 255, 0.1);
+            background: #f8f9fa;
+            border-color: #adb5bd;
         }
-        
+       
         .user-dropdown-menu {
             position: absolute;
             top: 100%;
             right: 0;
             background: white;
-            min-width: 120px;
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 280px;
+            z-index: 1060;
             display: none;
-            z-index: 1001;
+            padding: 0;
+            margin-top: 4px;
         }
-        
+       
         .user-dropdown-menu.show {
             display: block;
+        }
+       
+        .user-dropdown-header {
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+       
+        .user-dropdown-header h6 {
+            margin: 0;
+            font-weight: 600;
+            color: #495057;
+            font-size: 14px;
+        }
+       
+        .user-dropdown-body {
+            padding: 16px 20px;
+        }
+       
+        .user-info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+       
+        .user-info-item:last-child {
+            margin-bottom: 0;
+        }
+       
+        .user-info-label {
+            color: #6c757d;
+            font-weight: 500;
+        }
+       
+        .user-info-value {
+            color: #495057;
+            font-weight: 400;
+        }
+       
+        .user-info-value.email {
+            color: #0d6efd;
+        }
+       
+        .role-badge {
+            background: #e9ecef;
+            color: #495057;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
         
         .user-dropdown-item {
@@ -271,6 +333,8 @@
             border-radius: 8px;
             border: none;
             margin-bottom: 20px;
+            max-width: calc(100% - 200px); /* Leave space for static user button */
+            margin-right: auto;
         }
         
         .alert-success {
@@ -317,19 +381,22 @@
     <div class="user-info-container">
         <div class="user-dropdown">
             <button class="user-dropdown-toggle" onclick="toggleUserDropdown()">
-                <i class="fas fa-user me-2"></i>
-                <div class="user-info-text">
-                    <span class="user-name">{{ user_name or user_email }}</span>
-                    {% if is_admin %}
-                    <span class="admin-badge">Admin</span>
-                    {% endif %}
-                </div>
-                <i class="fas fa-chevron-down ms-2"></i>
+                <i class="fas fa-user" style="color: #495057;"></i>
+                <span class="user-name">{{ user_name or user_email }}</span>
+                <i class="fas fa-chevron-down"></i>
             </button>
             <div class="user-dropdown-menu" id="userDropdownMenu">
-                <a href="{{ url_for('auth.logout') }}" class="user-dropdown-item">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </a>
+                {% if is_admin %}
+                <div class="user-dropdown-header">
+                    <i class="fas fa-user-shield"></i>
+                    <h6>Administrator</h6>
+                </div>
+                {% endif %}
+                <div class="user-dropdown-body">
+                    <a href="{{ url_for('auth.logout') }}" class="user-dropdown-item">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
             </div>
         </div>
     </div>

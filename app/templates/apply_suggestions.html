@@ -55,9 +55,6 @@
                         <button type="button" id="deselectAllBtn" class="btn btn-sm btn-outline-light me-2">
                             Deselect All
                         </button>
-                        <button type="submit" id="applySelectedBtn" class="btn btn-sm btn-success" disabled>
-                            <i class="bi bi-check-square"></i> Apply Selected
-                        </button>
                     </div>
                 </div>
             </div>
@@ -165,6 +162,11 @@
         <div class="mb-4">
             <span id="selectedCount" class="text-muted">0 standards selected</span>
         </div>
+        
+        <!-- Sticky Apply Button -->
+        <button type="submit" id="applySelectedBtn" class="btn btn-success sticky-apply-btn" disabled>
+            <i class="bi bi-check-square"></i> Apply Selected
+        </button>
     </form>
     {% else %}
     <div class="alert alert-warning">
@@ -202,6 +204,43 @@
 </div>
 {% endif %}
 {% endfor %}
+
+<style>
+/* Sticky Apply Button */
+.sticky-apply-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 999;
+    padding: 12px 24px;
+    font-size: 1rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.sticky-apply-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+
+.sticky-apply-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sticky-apply-btn {
+        bottom: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        font-size: 0.9rem;
+    }
+}
+</style>
 
 <!-- Download Ready Modal -->
 <div class="modal fade" id="downloadReadyModal" tabindex="-1" aria-labelledby="downloadReadyModalLabel" aria-hidden="true">

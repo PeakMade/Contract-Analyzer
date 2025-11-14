@@ -582,8 +582,8 @@ function updateDateField(inputElement) {
     const field = inputElement.dataset.field;
     const value = inputElement.value;
     
-    // Convert to ISO datetime format for SharePoint (add time component)
-    const isoValue = value ? value + 'T00:00:00Z' : null;
+    // Convert to ISO datetime format for SharePoint (use noon to avoid timezone issues)
+    const isoValue = value ? value + 'T12:00:00Z' : null;
     
     console.log(`Updating ${field} to ${isoValue} for contract ${contractId}`);
     
@@ -635,11 +635,11 @@ function updateContractsTable(contracts) {
                         <i class="fas fa-file-alt"></i>
                     </a>
                     ${hasCompletedDoc ? 
-                        `<a href="${completedDocUrl}" target="_blank" class="btn btn-outline-success btn-sm" title="View Completed Document">
-                            <i class="fas fa-file-check"></i>
+                        `<a href="${completedDocUrl}" target="_blank" class="btn btn-outline-success btn-sm" title="Download Completed Document">
+                            <i class="fas fa-download"></i>
                         </a>` : 
                         `<button class="btn btn-outline-secondary btn-sm" disabled title="No Completed Document">
-                            <i class="fas fa-file-check"></i>
+                            <i class="fas fa-download"></i>
                         </button>`
                     }
                 </div>
