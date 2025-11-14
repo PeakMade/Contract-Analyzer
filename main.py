@@ -279,34 +279,49 @@ def analysis_status(contract_id):
     """Get the current progress of a contract analysis (rate-limited to prevent excessive polling)"""
     from time import time
     
+    app.logger.info(f"Status check for contract_id={contract_id}")
+    
     # Rate limiting: max 1 request per 500ms per session
     rate_limit_key = f'last_status_check_{contract_id}'
     last_check = session.get(rate_limit_key, 0)
     current_time = time()
+    time_since_last = current_time - last_check
     
-    if current_time - last_check < 0.5:  # 500ms minimum between requests
+    if time_since_last < 0.5:  # 500ms minimum between requests
         # Return cached response to prevent hammering
-        return jsonify({
+        cached_data = {
             "percent": session.get(f'last_percent_{contract_id}', 0),
             "stage": session.get(f'last_stage_{contract_id}', 'Processing...'),
             "done": False,
             "error": None
-        }), 429  # Too Many Requests
+        }
+        app.logger.debug(f"Rate limited for {contract_id} (age={time_since_last:.3f}s), returning cached: {cached_data}")
+        return jsonify(cached_data), 429  # Too Many Requests
     
     # Update rate limit timestamp
     session[rate_limit_key] = current_time
     
-    # Get actual progress
-    data = analysis_progress.get_progress(contract_id) or {
-        "percent": 0,
-        "stage": "Waiting to start",
-        "done": False,
-        "error": None
-    }
+    # Get actual progress from analysis_progress module
+    data = analysis_progress.get_progress(contract_id)
+    
+    if data is None:
+        app.logger.warning(f"No progress data found for contract_id={contract_id}, returning defaults")
+        data = {
+            "percent": 0,
+            "stage": "Waiting to start",
+            "done": False,
+            "error": None
+        }
     
     # Cache for rate-limited responses
     session[f'last_percent_{contract_id}'] = data.get('percent', 0)
     session[f'last_stage_{contract_id}'] = data.get('stage', 'Processing...')
+    
+    app.logger.info(
+        f"Status for {contract_id}: percent={data.get('percent')}%, "
+        f"stage='{data.get('stage')}', done={data.get('done')}, "
+        f"session_keys=[{rate_limit_key}, last_percent_{contract_id}, last_stage_{contract_id}]"
+    )
     
     return jsonify(data)
 
@@ -519,15 +534,12 @@ def contract_standards(contract_id):
 @app.route('/contract/<contract_id>/analyze', methods=['POST'], endpoint='analyze_contract')
 @login_required
 def analyze_contract_route(contract_id):
-    """Run AI analysis on contract with selected standards"""
+    """Run AI analysis on contract with selected standards (background processing)"""
     from app.services.sharepoint_service import sharepoint_service
-    temp_file_path = None
+    from threading import Thread
     
     try:
         app.logger.info(f"=== Starting contract analysis for contract_id={contract_id} ===")
-        
-        # Initialize progress
-        analysis_progress.set_progress(contract_id, 5, "Initializing analysis")
         
         # Get all selected standards from form (includes both default and custom standards)
         all_standards = request.form.getlist('standards')
@@ -538,6 +550,94 @@ def analyze_contract_route(contract_id):
             analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="No standards selected")
             flash('Please select at least one standard to analyze', 'warning')
             return redirect(url_for('contract_standards', contract_id=contract_id))
+        
+        # Initialize progress immediately
+        analysis_progress.set_progress(contract_id, 5, "Initializing analysis")
+        app.logger.info(f"Progress initialized for {contract_id}: 5% - Initializing analysis")
+        
+        # Get contract details for the results page
+        from app.services.sharepoint_service import sharepoint_service
+        contract = sharepoint_service.get_contract_by_id(contract_id)
+        contract_name = contract.get('Contract_x0020_Name', 'Unknown Contract') if contract else 'Unknown Contract'
+        
+        # Start background analysis thread
+        def run_background_analysis():
+            temp_file_path = None
+            try:
+                app.logger.info(f"Background thread started for {contract_id}")
+                
+                # Download contract from SharePoint
+                app.logger.info(f"Step 1/4: Downloading contract {contract_id} from SharePoint...")
+                analysis_progress.set_progress(contract_id, 20, "Downloading document")
+                temp_file_path = download_contract(contract_id)
+                app.logger.info(f"Contract downloaded successfully to: {temp_file_path}")
+                
+                # Extract text from contract
+                app.logger.info(f"Step 2/4: Extracting text from contract...")
+                analysis_progress.set_progress(contract_id, 35, "Extracting text")
+                contract_text = extract_text(temp_file_path)
+                app.logger.info(f"Text extraction complete: {len(contract_text)} characters extracted")
+                
+                # Get preferred standards from SharePoint (as dict for analysis)
+                app.logger.info(f"Step 3/4: Loading preferred standards from SharePoint...")
+                analysis_progress.set_progress(contract_id, 40, "Loading standards")
+                preferred_standards_dict = get_preferred_standards_dict()
+                app.logger.info(f"Preferred standards loaded: {len(preferred_standards_dict)} standards available")
+                
+                # Run AI analysis with progress tracking
+                app.logger.info(f"Step 4/4: Starting AI analysis for {len(all_standards)} standards...")
+                analysis_progress.set_progress(contract_id, 45, "Starting AI analysis")
+                analysis_results = run_analysis(contract_text, all_standards, preferred_standards_dict, contract_id)
+                app.logger.info(f"AI analysis complete: {len(analysis_results)} results generated")
+                
+                # Cache the results with 30-minute TTL
+                cache_data = {
+                    'results': analysis_results,
+                    'selected': all_standards,
+                    'ts': datetime.utcnow().isoformat()
+                }
+                analysis_cache.set(contract_id, cache_data, ttl=1800)
+                app.logger.info(f"Analysis results cached for contract {contract_id}")
+                
+                # Update status to "In progress" in SharePoint
+                app.logger.info(f"Updating contract status to 'In progress' for contract {contract_id}...")
+                if contract and 'id' in contract:
+                    status_updated = sharepoint_service.update_contract_field(contract['id'], 'Status', 'In progress')
+                    if status_updated:
+                        app.logger.info(f"Contract status updated to 'In progress' successfully")
+                    else:
+                        app.logger.warning(f"Failed to update contract status (non-critical)")
+                
+                # Clean up temporary file
+                if temp_file_path and Path(temp_file_path).exists():
+                    Path(temp_file_path).unlink()
+                    app.logger.info(f"Temporary file cleaned up: {temp_file_path}")
+                
+                # Mark as complete
+                analysis_progress.set_progress(contract_id, 100, "Analysis complete", done=True)
+                app.logger.info(f"=== Contract analysis completed successfully for contract_id={contract_id} ===")
+                
+            except Exception as e:
+                app.logger.exception(f"Background analysis failed for {contract_id}")
+                analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error=str(e))
+            finally:
+                # Cleanup
+                if temp_file_path:
+                    try:
+                        if Path(temp_file_path).exists():
+                            Path(temp_file_path).unlink()
+                    except Exception as cleanup_error:
+                        app.logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
+        
+        # Start the background thread
+        thread = Thread(target=run_background_analysis)
+        thread.daemon = True
+        thread.start()
+        app.logger.info(f"Background analysis thread started for {contract_id}")
+        
+        # Immediately redirect to a polling/waiting page
+        flash('Analysis started! Please wait while we analyze your contract.', 'info')
+        return redirect(url_for('analysis_waiting', contract_id=contract_id))
         
         # Download contract from SharePoint
         app.logger.info(f"Step 1/4: Downloading contract {contract_id} from SharePoint...")
@@ -630,16 +730,28 @@ def analyze_contract_route(contract_id):
         
         flash('Analysis failed; please try again.', 'error')
         return redirect(url_for('contract_standards', contract_id=contract_id))
-        
-    finally:
-        # Ensure cleanup of temporary file even if error occurs
-        if temp_file_path:
-            try:
-                if Path(temp_file_path).exists():
-                    Path(temp_file_path).unlink()
-                    app.logger.debug(f"Temporary file cleanup successful in finally block")
-            except Exception as cleanup_error:
-                app.logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
+
+@app.route('/analysis/waiting/<contract_id>')
+@login_required
+def analysis_waiting(contract_id):
+    """Waiting page that polls for analysis completion"""
+    from app.services.sharepoint_service import sharepoint_service
+    
+    app.logger.info(f"User viewing analysis waiting page for contract_id={contract_id}")
+    
+    # Get contract details
+    contract = sharepoint_service.get_contract_by_id(contract_id)
+    contract_name = contract.get('Contract_x0020_Name', 'Unknown Contract') if contract else 'Unknown Contract'
+    
+    # Check if analysis is already complete
+    progress = analysis_progress.get_progress(contract_id)
+    if progress and progress.get('done'):
+        app.logger.info(f"Analysis already complete for {contract_id}, redirecting to results")
+        return redirect(url_for('apply_suggestions_new', contract_id=contract_id))
+    
+    return render_template('analysis_waiting.html', 
+                         contract_id=contract_id,
+                         contract_name=contract_name)
 
 @app.route('/apply_suggestions_new/<contract_id>')
 @login_required

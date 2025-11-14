@@ -696,13 +696,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return false;
       }
       
-      // Check if already polling (analysis in progress)
-      if (analysisPollingTimer !== null) {
-        e.preventDefault();
-        alert('Analysis already in progress. Please wait for it to complete.');
-        return false;
-      }
-      
       // Mark as submitting
       isSubmitting = true;
       
@@ -712,22 +705,11 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.6';
         submitBtn.style.cursor = 'not-allowed';
+        submitBtn.textContent = 'Starting Analysis...';
       }
       
-      // Show the progress modal
-      const modal = document.getElementById('analysis-modal');
-      const bar = document.getElementById('analysis-progress-bar');
-      const statusText = document.getElementById('analysis-status-text');
-      
-      modal.classList.remove('hidden');
-      bar.style.width = '0%';
-      statusText.textContent = 'Initializing...';
-      
-      // Start polling for progress
-      const contractId = '{{ contract_id }}';
-      startAnalysisPolling(contractId);
-      
-      // Let form submit normally
+      // Let form submit normally - will redirect to waiting page
+      console.log('Submitting analysis form - will redirect to waiting page');
       return true;
     });
   }

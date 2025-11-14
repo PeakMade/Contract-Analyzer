@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}Analyzing Contract - {{ contract_name }}{% endblock %}
+
+{% block content %}
+<div class="card contract-portal" style="max-width: 800px; margin: 50px auto;">
+  <h1 style="text-align:center; color: #495057; margin-bottom:30px; font-size:2rem; letter-spacing:1px;">
+    Analyzing {{ contract_name }}
+  </h1>
+
+  <!-- Progress Modal (Always Visible) -->
+  <div class="analysis-modal-content" style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);">
+    <h3 style="margin: 0 0 20px 0; color: #495057; font-size: 1.5rem; text-align: center;">Running AI Analysis</h3>
+    
+    <div class="progress-bar-outer">
+      <div id="analysis-progress-bar" class="progress-bar-inner" style="width: 5%;"></div>
+    </div>
+    
+    <div id="analysis-status-text" class="status-text">Initializing...</div>
+    <div id="analysis-percent-text" class="status-subtext" style="margin-top: 10px; font-weight: 600;">5%</div>
+    <div class="status-subtext">Hang tight! This may take a while</div>
+    
+    <div id="error-message" class="alert alert-danger" style="margin-top: 20px; display: none;">
+      <strong>Error:</strong> <span id="error-text"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+const contractId = '{{ contract_id }}';
+let pollingTimer = null;
+let pollCount = 0;
+const maxPolls = 300; // 5 minutes at 1 second intervals
+
+function updateProgress(data) {
+  const bar = document.getElementById('analysis-progress-bar');
+  const statusText = document.getElementById('analysis-status-text');
+  const percentText = document.getElementById('analysis-percent-text');
+  const errorMessage = document.getElementById('error-message');
+  const errorText = document.getElementById('error-text');
+  
+  const percent = data.percent || 0;
+  const stage = data.stage || 'Processing...';
+  const done = data.done || false;
+  const error = data.error || null;
+  
+  console.log(`[Poll ${pollCount}] Status:`, { percent, stage, done, error });
+  
+  // Update progress bar
+  bar.style.width = percent + '%';
+  statusText.textContent = stage;
+  percentText.textContent = percent + '%';
+  
+  // Handle errors
+  if (error) {
+    console.error('Analysis error:', error);
+    errorText.textContent = error;
+    errorMessage.style.display = 'block';
+    stopPolling();
+    
+    // Redirect back to standards page after 3 seconds
+    setTimeout(() => {
+      window.location.href = '/contract/' + contractId + '/standards';
+    }, 3000);
+    return;
+  }
+  
+  // Handle completion
+  if (done || percent >= 100) {
+    console.log('Analysis complete! Redirecting to results...');
+    stopPolling();
+    
+    statusText.textContent = 'Complete! Redirecting...';
+    
+    // Redirect to results page
+    setTimeout(() => {
+      window.location.href = '/apply_suggestions_new/' + contractId;
+    }, 1000);
+  }
+}
+
+function pollStatus() {
+  pollCount++;
+  
+  console.log(`[Poll ${pollCount}/${maxPolls}] Fetching status for contract ${contractId}...`);
+  
+  fetch('/api/analysis-status/' + contractId, { 
+    cache: 'no-store',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(resp => {
+    console.log(`[Poll ${pollCount}] Response status: ${resp.status}`);
+    
+    if (resp.status === 429) {
+      console.log('[Poll ${pollCount}] Rate limited, will retry');
+      return null;
+    }
+    
+    if (!resp.ok) {
+      console.error(`[Poll ${pollCount}] HTTP error: ${resp.status}`);
+      return null;
+    }
+    
+    return resp.json();
+  })
+  .then(data => {
+    if (data) {
+      updateProgress(data);
+    }
+  })
+  .catch(err => {
+    console.error(`[Poll ${pollCount}] Fetch error:`, err);
+  });
+  
+  // Safety: stop after max polls
+  if (pollCount >= maxPolls) {
+    console.error('Max polls reached, stopping');
+    stopPolling();
+    alert('Analysis is taking longer than expected. Please check the contract page.');
+    window.location.href = '/contract/' + contractId + '/standards';
+  }
+}
+
+function stopPolling() {
+  if (pollingTimer) {
+    clearInterval(pollingTimer);
+    pollingTimer = null;
+    console.log('Polling stopped');
+  }
+}
+
+// Start polling immediately
+console.log('Starting analysis polling for contract ' + contractId);
+pollStatus(); // Immediate first poll
+pollingTimer = setInterval(pollStatus, 1000); // Poll every 1 second
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', stopPolling);
+</script>
+
+<style>
+.progress-bar-outer {
+  width: 100%;
+  height: 30px;
+  background: #e9ecef;
+  border-radius: 15px;
+  overflow: hidden;
+  margin: 20px 0 15px 0;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar-inner {
+  height: 100%;
+  background-color: #5dade2;
+  background-image: 
+    linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.15) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.15) 50%,
+      rgba(0, 0, 0, 0.15) 75%,
+      transparent 75%,
+      transparent
+    );
+  background-size: 32px 32px;
+  transition: width 0.3s ease;
+  border-radius: 15px;
+  animation: progress-stripes 1.2s linear infinite;
+}
+
+@keyframes progress-stripes {
+  from { 
+    background-position: 0 0; 
+  }
+  to { 
+    background-position: 32px 0; 
+  }
+}
+
+.status-text {
+  font-size: 1rem;
+  color: #495057;
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 5px;
+}
+
+.status-subtext {
+  font-size: 0.9rem;
+  color: #6c757d;
+  text-align: center;
+  font-style: italic;
+}
+</style>
+{% endblock %}
