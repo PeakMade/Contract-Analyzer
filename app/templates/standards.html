@@ -552,14 +552,21 @@ function addCustomStandard() {
 }
 
 // Progress tracking for AI analysis
+let analysisPollingTimer = null;
+
 function startAnalysisPolling(contractId) {
+  // Prevent multiple polling loops
+  if (analysisPollingTimer !== null) {
+    return;
+  }
+  
   const bar = document.getElementById('analysis-progress-bar');
   const statusText = document.getElementById('analysis-status-text');
   const modal = document.getElementById('analysis-modal');
   
-  let timer = setInterval(async () => {
+  analysisPollingTimer = setInterval(async () => {
     try {
-      const resp = await fetch(`/api/analysis-status/${contractId}`, { cache: 'no-store' });
+      const resp = await fetch('/api/analysis-status/' + contractId, { cache: 'no-store' });
       if (!resp.ok) return; // ignore transient errors
       
       const data = await resp.json();
@@ -567,7 +574,8 @@ function startAnalysisPolling(contractId) {
       statusText.textContent = data.stage || 'Working...';
       
       if (data.done) {
-        clearInterval(timer);
+        clearInterval(analysisPollingTimer);
+        analysisPollingTimer = null;
         // Keep modal visible until page navigates to results
         if (data.error) {
           alert('❌ Analysis failed: ' + data.error);
