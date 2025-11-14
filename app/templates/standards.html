@@ -211,7 +211,7 @@
               onfocus="this.style.borderColor='#495057'" onblur="this.style.borderColor='#e0e0e0'">
 
             <!-- Add Standard button -->
-            <button type="button" id="add-custom-standard" onclick="addCustomStandard(); return false;"
+            <button type="button" id="add-custom-standard"
               style="width: 140px; background: #495057; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: 500; cursor: pointer; font-size: 0.8rem; box-sizing: border-box; transition: all 0.2s ease;">
               Add Standard
             </button>
@@ -226,13 +226,7 @@
           style="display: inline-block; font-size: 0.8rem; padding: 6px 12px; background: var(--peakmade-magenta); border: none; color: white; border-radius: 4px; font-weight: 500; cursor: pointer;">
           Run AI Analysis
         </button>
-        <p id="analyze-description" style="margin-top: 12px; color: #6c757d; font-size: 0.9rem; font-style: italic;">
-          This may take 20-30 seconds depending on the contract length and number of standards selected.
-        </p>
       </div>
-
-      <!-- Hidden textarea for custom standards -->
-      <textarea name="custom_standards" id="custom-standards-hidden" style="display: none;"></textarea>
 
     </form>
   </div>
@@ -304,6 +298,7 @@ function showDownloadModal(downloadUrl, filename, standardsApplied) {
   const modal = new bootstrap.Modal(document.getElementById('downloadReadyModal'));
   modal.show();
 }
+</script>
 
 <script>
 {% if analysis_completed and summary %}
@@ -529,13 +524,11 @@ function addCustomStandard() {
     e.stopPropagation();
     if (confirm('Remove this custom standard?')) {
       newLabel.remove();
-      updateCustomStandardsHidden();
     }
   });
 
   // Clear input
   input.value = '';
-  updateCustomStandardsHidden();
 
   // Show success message
   const msg = document.createElement('div');
@@ -543,13 +536,6 @@ function addCustomStandard() {
   msg.textContent = `✅ "${standardText}" added!`;
   document.body.appendChild(msg);
   setTimeout(() => msg.remove(), 3000);
-}
-
-function updateCustomStandardsHidden() {
-  const hiddenTextarea = document.getElementById('custom-standards-hidden');
-  const customCheckboxes = document.querySelectorAll('.custom-standard input[name="standards"]');
-  const customStandards = Array.from(customCheckboxes).map(cb => cb.value);
-  hiddenTextarea.value = customStandards.join(', ');
 }
 
 // Initialize on page load

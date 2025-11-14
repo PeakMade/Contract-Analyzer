@@ -474,21 +474,10 @@ def analyze_contract_route(contract_id):
         print(f"\n=== DEBUG analyze_contract ===")
         print(f"Contract ID: {contract_id}")
         
-        # Get selected standards from form
-        selected_standards = request.form.getlist('standards')
-        custom_standards_text = request.form.get('custom_standards', '').strip()
+        # Get all selected standards from form (includes both default and custom standards)
+        all_standards = request.form.getlist('standards')
         
-        # Parse custom standards
-        custom_standards = []
-        if custom_standards_text:
-            custom_standards = [s.strip() for s in custom_standards_text.split(',') if s.strip()]
-        
-        # Combine all standards
-        all_standards = selected_standards + custom_standards
-        
-        print(f"Selected standards: {len(selected_standards)}")
-        print(f"Custom standards: {len(custom_standards)}")
-        print(f"Total standards: {len(all_standards)}")
+        print(f"Total standards selected: {len(all_standards)}")
         
         if not all_standards:
             flash('Please select at least one standard to analyze', 'warning')

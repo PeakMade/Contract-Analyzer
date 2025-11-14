@@ -80,7 +80,7 @@
             width: 100%;
             max-width: none;
             padding: 15px 40px;
-            padding-top: 60px; /* Add space at top for user button */
+            padding-top: 15px; /* Minimal padding at top */
             margin: 0;
             position: relative; /* Allow absolute positioning of children */
         }
@@ -221,7 +221,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             min-width: 280px;
-            z-index: 1060;
+            z-index: 9999; /* Ensure it overlays all content */
             display: none;
             padding: 0;
             margin-top: 4px;

@@ -126,7 +126,6 @@
                                 <tr>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Contract Name</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Submitter</th>
-                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Submitter Email</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Business Approver</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Date Submitted</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Date Requested</th>
@@ -140,7 +139,7 @@
                             </thead>
                             <tbody id="contractsTableBody" style="background: white;">
                                 <tr>
-                                    <td colspan="12" class="text-center text-muted py-4">
+                                    <td colspan="11" class="text-center text-muted py-4">
                                         <div class="spinner-border" role="status">
                                             <span class="visually-hidden">Loading...</span>
                                         </div>
@@ -650,7 +649,6 @@ function updateContractsTable(contracts) {
             <tr style="background: white; color: #333;">
                 <td style="border-color: #dee2e6;">${contractName}</td>
                 <td style="border-color: #dee2e6;">${contract.submitter_name}</td>
-                <td style="border-color: #dee2e6;"><small class="text-muted">${contract.submitter_email}</small></td>
                 <td style="border-color: #dee2e6;"><small class="text-muted">${contract.business_approver_email}</small></td>
                 <td style="border-color: #dee2e6;">${contract.date_submitted}</td>
                 <td style="border-color: #dee2e6;">${contract.date_requested}</td>
