@@ -553,10 +553,14 @@ function addCustomStandard() {
 
 // Progress tracking for AI analysis
 let analysisPollingTimer = null;
+let lastProgressPercent = 0;
+let unchangedPolls = 0;
+let currentInterval = 1000; // Start at 1 second
 
 function startAnalysisPolling(contractId) {
   // Prevent multiple polling loops
   if (analysisPollingTimer !== null) {
+    console.log('Polling already active, skipping');
     return;
   }
   
@@ -564,32 +568,94 @@ function startAnalysisPolling(contractId) {
   const statusText = document.getElementById('analysis-status-text');
   const modal = document.getElementById('analysis-modal');
   
-  analysisPollingTimer = setInterval(async () => {
-    try {
-      const resp = await fetch('/api/analysis-status/' + contractId, { cache: 'no-store' });
-      if (!resp.ok) return; // ignore transient errors
-      
-      const data = await resp.json();
-      bar.style.width = (data.percent || 0) + '%';
-      statusText.textContent = data.stage || 'Working...';
-      
-      if (data.done) {
-        clearInterval(analysisPollingTimer);
-        analysisPollingTimer = null;
-        // Keep modal visible until page navigates to results
-        if (data.error) {
-          alert('❌ Analysis failed: ' + data.error);
-          // Hide modal on error
-          setTimeout(() => {
-            modal.classList.add('hidden');
-          }, 1000);
-        }
-      }
-    } catch (e) {
-      console.error('Polling failed', e);
+  // Reset polling state
+  lastProgressPercent = 0;
+  unchangedPolls = 0;
+  currentInterval = 1000;
+  
+  function pollStatus() {
+    // Check if tab is visible (pause polling when hidden)
+    if (document.hidden) {
+      console.log('Tab hidden, skipping poll');
+      return;
     }
-  }, 1000);
+    
+    fetch('/api/analysis-status/' + contractId, { cache: 'no-store' })
+      .then(resp => {
+        if (!resp.ok) return null;
+        return resp.json();
+      })
+      .then(data => {
+        if (!data) return;
+        
+        bar.style.width = (data.percent || 0) + '%';
+        statusText.textContent = data.stage || 'Working...';
+        
+        // Exponential backoff if progress hasn't changed
+        if (data.percent === lastProgressPercent) {
+          unchangedPolls++;
+          if (unchangedPolls >= 3) {
+            // Increase interval up to max 5 seconds
+            const newInterval = Math.min(currentInterval + 1000, 5000);
+            if (newInterval !== currentInterval) {
+              currentInterval = newInterval;
+              console.log(`Backing off polling to ${currentInterval}ms`);
+              clearInterval(analysisPollingTimer);
+              analysisPollingTimer = setInterval(pollStatus, currentInterval);
+            }
+          }
+        } else {
+          // Progress changed, reset backoff
+          if (unchangedPolls > 0) {
+            unchangedPolls = 0;
+            currentInterval = 1000;
+            console.log('Progress updated, resetting to 1s polling');
+            clearInterval(analysisPollingTimer);
+            analysisPollingTimer = setInterval(pollStatus, currentInterval);
+          }
+          lastProgressPercent = data.percent;
+        }
+        
+        if (data.done) {
+          clearInterval(analysisPollingTimer);
+          analysisPollingTimer = null;
+          console.log('Analysis complete, polling stopped');
+          
+          if (data.error) {
+            alert('❌ Analysis failed: ' + data.error);
+            setTimeout(() => {
+              modal.classList.add('hidden');
+            }, 1000);
+          }
+        }
+      })
+      .catch(e => {
+        console.error('Polling failed', e);
+      });
+  }
+  
+  // Start polling
+  analysisPollingTimer = setInterval(pollStatus, currentInterval);
+  pollStatus(); // Immediate first poll
 }
+
+// Cleanup polling on page unload
+window.addEventListener('beforeunload', function() {
+  if (analysisPollingTimer !== null) {
+    clearInterval(analysisPollingTimer);
+    analysisPollingTimer = null;
+    console.log('Page unloading, cleared polling timer');
+  }
+});
+
+// Pause polling when tab becomes hidden, resume when visible
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) {
+    console.log('Tab hidden - polling will pause on next cycle');
+  } else {
+    console.log('Tab visible - polling will resume');
+  }
+});
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -612,13 +678,40 @@ document.addEventListener('DOMContentLoaded', function() {
   // Hook into analyze form submission
   const analyzeForm = document.querySelector('form[action*="/analyze"]');
   if (analyzeForm) {
+    let isSubmitting = false; // Prevent double submission
+    
     analyzeForm.addEventListener('submit', function(e) {
+      // Prevent multiple submissions
+      if (isSubmitting) {
+        e.preventDefault();
+        console.log('Form already submitting, ignoring');
+        return false;
+      }
+      
       // Check if at least one standard is selected
       const checkedStandards = document.querySelectorAll('input[name="standards"]:checked');
       if (checkedStandards.length === 0) {
         e.preventDefault();
         alert('Please select at least one standard to analyze');
         return false;
+      }
+      
+      // Check if already polling (analysis in progress)
+      if (analysisPollingTimer !== null) {
+        e.preventDefault();
+        alert('Analysis already in progress. Please wait for it to complete.');
+        return false;
+      }
+      
+      // Mark as submitting
+      isSubmitting = true;
+      
+      // Disable submit button
+      const submitBtn = document.getElementById('analyze-button');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        submitBtn.style.cursor = 'not-allowed';
       }
       
       // Show the progress modal

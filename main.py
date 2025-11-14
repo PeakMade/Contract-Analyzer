@@ -261,13 +261,38 @@ def update_contract_field():
 @app.route('/api/analysis-status/<contract_id>')
 @login_required
 def analysis_status(contract_id):
-    """Get the current progress of a contract analysis"""
+    """Get the current progress of a contract analysis (rate-limited to prevent excessive polling)"""
+    from time import time
+    
+    # Rate limiting: max 1 request per 500ms per session
+    rate_limit_key = f'last_status_check_{contract_id}'
+    last_check = session.get(rate_limit_key, 0)
+    current_time = time()
+    
+    if current_time - last_check < 0.5:  # 500ms minimum between requests
+        # Return cached response to prevent hammering
+        return jsonify({
+            "percent": session.get(f'last_percent_{contract_id}', 0),
+            "stage": session.get(f'last_stage_{contract_id}', 'Processing...'),
+            "done": False,
+            "error": None
+        }), 429  # Too Many Requests
+    
+    # Update rate limit timestamp
+    session[rate_limit_key] = current_time
+    
+    # Get actual progress
     data = analysis_progress.get_progress(contract_id) or {
         "percent": 0,
         "stage": "Waiting to start",
         "done": False,
         "error": None
     }
+    
+    # Cache for rate-limited responses
+    session[f'last_percent_{contract_id}'] = data.get('percent', 0)
+    session[f'last_stage_{contract_id}'] = data.get('stage', 'Processing...')
+    
     return jsonify(data)
 
 @app.route('/api/upload-completed-contract', methods=['POST'])
