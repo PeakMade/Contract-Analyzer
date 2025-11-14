@@ -104,7 +104,8 @@ def _analyze_standard_with_chunks(
 def analyze_contract(
     text: str,
     standards: List[str],
-    preferred: Dict[str, str]
+    preferred: Dict[str, str],
+    contract_id: str = None
 ) -> Dict[str, dict]:
     """
     Analyze a contract against multiple standards.
@@ -119,6 +120,7 @@ def analyze_contract(
         standards: List of standard names to check.
         preferred: Dictionary of preferred (gold standard) clauses from SharePoint.
                    Keys are standard names from "Preferred Contract Terms" list.
+        contract_id: Optional contract ID for progress tracking.
     
     Returns:
         Dictionary keyed by standard name, with values containing:
@@ -143,11 +145,18 @@ def analyze_contract(
     
     # Import here to avoid circular dependency
     from app.services.llm_client import analyze_standard
+    import analysis_progress
     
     results = {}
+    total_standards = len(standards)
     
     for i, standard in enumerate(standards, 1):
         logger.info(f"Analyzing standard {i}/{len(standards)}: {standard}")
+        
+        # Update progress (40% to 90% range during AI analysis)
+        if contract_id:
+            pct = 40 + int(50 * i / total_standards)
+            analysis_progress.set_progress(contract_id, pct, f"Analyzing Standards ({i} of {total_standards})")
         
         # Check if this is a SharePoint preferred standard or custom standard
         is_preferred_standard = standard in preferred

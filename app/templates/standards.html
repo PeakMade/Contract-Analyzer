@@ -235,6 +235,19 @@
   {# End of analysis_completed conditional #}
 </div>
 
+<!-- Analysis Progress Modal -->
+<div id="analysis-modal" class="analysis-modal hidden">
+  <div class="analysis-modal-overlay"></div>
+  <div class="analysis-modal-content">
+    <h3 style="margin: 0 0 20px 0; color: #495057; font-size: 1.5rem; text-align: center;">Running AI Analysis</h3>
+    <div class="progress-bar-outer">
+      <div id="analysis-progress-bar" class="progress-bar-inner"></div>
+    </div>
+    <div id="analysis-status-text" class="status-text">Initializing...</div>
+    <div class="status-subtext">Hang tight! This may take a while</div>
+  </div>
+</div>
+
 <!-- Download Ready Modal -->
 <div class="modal fade" id="downloadReadyModal" tabindex="-1" aria-labelledby="downloadReadyModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -538,6 +551,38 @@ function addCustomStandard() {
   setTimeout(() => msg.remove(), 3000);
 }
 
+// Progress tracking for AI analysis
+function startAnalysisPolling(contractId) {
+  const bar = document.getElementById('analysis-progress-bar');
+  const statusText = document.getElementById('analysis-status-text');
+  const modal = document.getElementById('analysis-modal');
+  
+  let timer = setInterval(async () => {
+    try {
+      const resp = await fetch(`/api/analysis-status/${contractId}`, { cache: 'no-store' });
+      if (!resp.ok) return; // ignore transient errors
+      
+      const data = await resp.json();
+      bar.style.width = (data.percent || 0) + '%';
+      statusText.textContent = data.stage || 'Working...';
+      
+      if (data.done) {
+        clearInterval(timer);
+        // Keep modal visible until page navigates to results
+        if (data.error) {
+          alert('❌ Analysis failed: ' + data.error);
+          // Hide modal on error
+          setTimeout(() => {
+            modal.classList.add('hidden');
+          }, 1000);
+        }
+      }
+    } catch (e) {
+      console.error('Polling failed', e);
+    }
+  }, 1000);
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
   const addButton = document.getElementById('add-custom-standard');
@@ -555,10 +600,131 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+  
+  // Hook into analyze form submission
+  const analyzeForm = document.querySelector('form[action*="/analyze"]');
+  if (analyzeForm) {
+    analyzeForm.addEventListener('submit', function(e) {
+      // Check if at least one standard is selected
+      const checkedStandards = document.querySelectorAll('input[name="standards"]:checked');
+      if (checkedStandards.length === 0) {
+        e.preventDefault();
+        alert('Please select at least one standard to analyze');
+        return false;
+      }
+      
+      // Show the progress modal
+      const modal = document.getElementById('analysis-modal');
+      const bar = document.getElementById('analysis-progress-bar');
+      const statusText = document.getElementById('analysis-status-text');
+      
+      modal.classList.remove('hidden');
+      bar.style.width = '0%';
+      statusText.textContent = 'Initializing...';
+      
+      // Start polling for progress
+      const contractId = '{{ contract_id }}';
+      startAnalysisPolling(contractId);
+      
+      // Let form submit normally
+      return true;
+    });
+  }
 });
 </script>
 
 <style>
+/* Analysis Progress Modal */
+.analysis-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.analysis-modal.hidden {
+  display: none;
+}
+
+.analysis-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.analysis-modal-content {
+  position: relative;
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.progress-bar-outer {
+  width: 100%;
+  height: 30px;
+  background: #e9ecef;
+  border-radius: 15px;
+  overflow: hidden;
+  margin: 20px 0 15px 0;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar-inner {
+  height: 100%;
+  background-color: #5dade2;
+  background-image: 
+    linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.15) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.15) 50%,
+      rgba(0, 0, 0, 0.15) 75%,
+      transparent 75%,
+      transparent
+    );
+  background-size: 32px 32px;
+  width: 0%;
+  transition: width 0.3s ease;
+  border-radius: 15px;
+  animation: progress-stripes 1.2s linear infinite;
+}
+
+@keyframes progress-stripes {
+  from { 
+    background-position: 0 0; 
+  }
+  to { 
+    background-position: 32px 0; 
+  }
+}
+
+.status-text {
+  font-size: 1rem;
+  color: #495057;
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.status-subtext {
+  font-size: 0.9rem;
+  color: #6c757d;
+  text-align: center;
+  font-style: italic;
+}
+
 /* Standards selection styling */
 .standards-selection label:hover {
   background: #e9ecef !important;

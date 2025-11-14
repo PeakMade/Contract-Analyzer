@@ -10,6 +10,7 @@ from app.services.text_extractor import extract_text
 from app.services.sp_preferred_standards import get_preferred_standards, get_preferred_standards_dict
 from app.services.analysis_orchestrator import analyze_contract as run_analysis
 from app.cache import analysis_cache
+import analysis_progress
 
 print("\n=== DEBUG APP INITIALIZATION ===")
 
@@ -257,6 +258,18 @@ def update_contract_field():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/analysis-status/<contract_id>')
+@login_required
+def analysis_status(contract_id):
+    """Get the current progress of a contract analysis"""
+    data = analysis_progress.get_progress(contract_id) or {
+        "percent": 0,
+        "stage": "Waiting to start",
+        "done": False,
+        "error": None
+    }
+    return jsonify(data)
+
 @app.route('/api/upload-completed-contract', methods=['POST'])
 @login_required
 def upload_completed_contract():
@@ -474,22 +487,28 @@ def analyze_contract_route(contract_id):
         print(f"\n=== DEBUG analyze_contract ===")
         print(f"Contract ID: {contract_id}")
         
+        # Initialize progress
+        analysis_progress.set_progress(contract_id, 5, "Initializing analysis")
+        
         # Get all selected standards from form (includes both default and custom standards)
         all_standards = request.form.getlist('standards')
         
         print(f"Total standards selected: {len(all_standards)}")
         
         if not all_standards:
+            analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="No standards selected")
             flash('Please select at least one standard to analyze', 'warning')
             return redirect(url_for('contract_standards', contract_id=contract_id))
         
         # Download contract from SharePoint
         print(f"Downloading contract {contract_id} from SharePoint...")
+        analysis_progress.set_progress(contract_id, 20, "Downloading document")
         temp_file_path = download_contract(contract_id)
         print(f"Contract downloaded to: {temp_file_path}")
         
         # Extract text from contract
         print(f"Extracting text from contract...")
+        analysis_progress.set_progress(contract_id, 40, "Extracting text")
         contract_text = extract_text(temp_file_path)
         print(f"Extracted {len(contract_text)} characters")
         
@@ -498,9 +517,9 @@ def analyze_contract_route(contract_id):
         preferred_standards_dict = get_preferred_standards_dict()
         print(f"Loaded {len(preferred_standards_dict)} preferred standards")
         
-        # Run AI analysis
+        # Run AI analysis with progress tracking
         print(f"Running AI analysis for {len(all_standards)} standards...")
-        analysis_results = run_analysis(contract_text, all_standards, preferred_standards_dict)
+        analysis_results = run_analysis(contract_text, all_standards, preferred_standards_dict, contract_id)
         print(f"Analysis complete: {len(analysis_results)} results")
         
         # Cache the results with 30-minute TTL
@@ -515,6 +534,7 @@ def analyze_contract_route(contract_id):
         # Update status to "In progress" in SharePoint (matches SharePoint choice field)
         # First get the contract to obtain the SharePoint list item ID
         print(f"Updating status to 'In progress' for contract {contract_id}...")
+        analysis_progress.set_progress(contract_id, 100, "Finalizing results", done=True)
         contract = sharepoint_service.get_contract_by_id(contract_id)
         if contract and 'id' in contract:
             status_updated = sharepoint_service.update_contract_field(contract['id'], 'Status', 'In progress')
@@ -535,12 +555,14 @@ def analyze_contract_route(contract_id):
         
     except PermissionError as e:
         if "SESSION_EXPIRED" in str(e):
+            analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="Session expired")
             flash('Session expired — please sign in again.', 'warning')
             return redirect(url_for('auth.login'))
         else:
             print(f"Permission error in analyze_contract: {str(e)}")
             import traceback
             traceback.print_exc()
+            analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="Permission denied")
             flash('You do not have permission to access this contract.', 'error')
             return redirect(url_for('contract_standards', contract_id=contract_id))
             
@@ -548,6 +570,7 @@ def analyze_contract_route(contract_id):
         print(f"File not found in analyze_contract: {str(e)}")
         import traceback
         traceback.print_exc()
+        analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="Contract file not found")
         flash('Contract file not found in SharePoint.', 'error')
         return redirect(url_for('contract_standards', contract_id=contract_id))
         
@@ -555,6 +578,7 @@ def analyze_contract_route(contract_id):
         print(f"Runtime error in analyze_contract: {str(e)}")
         import traceback
         traceback.print_exc()
+        analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="Document processing failed")
         flash('Could not process the document.', 'error')
         return redirect(url_for('contract_standards', contract_id=contract_id))
         
@@ -562,6 +586,7 @@ def analyze_contract_route(contract_id):
         print(f"Unexpected error in analyze_contract: {str(e)}")
         import traceback
         traceback.print_exc()
+        analysis_progress.set_progress(contract_id, 100, "Analysis failed", done=True, error="Analysis failed unexpectedly")
         flash('Analysis failed; please try again.', 'error')
         return redirect(url_for('contract_standards', contract_id=contract_id))
         
