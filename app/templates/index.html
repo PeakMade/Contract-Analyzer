@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert(`Success! ${data.message}\n\nFile uploaded to SharePoint: ${data.file_url}`);
+                    // No alert popup - success message will show in banner
                     contractForm.reset();
                     fileNameDiv.innerHTML = '';
                     

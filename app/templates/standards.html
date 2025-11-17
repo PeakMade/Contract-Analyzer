@@ -235,6 +235,23 @@
   {# End of analysis_completed conditional #}
 </div>
 
+<!-- AI Analysis Loading Overlay -->
+<div id="analysisLoadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 9999; justify-content: center; align-items: center;">
+  <div style="text-align: center; color: white;">
+    <!-- Spinning Wheel -->
+    <div class="spinner-wheel" style="margin: 0 auto 30px; width: 80px; height: 80px; border: 8px solid rgba(255, 255, 255, 0.2); border-top: 8px solid #e6007e; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    
+    <!-- Message -->
+    <h2 style="font-size: 1.8rem; font-weight: 600; margin-bottom: 15px; color: white;">Hang Tight!</h2>
+    <p style="font-size: 1.1rem; color: rgba(255, 255, 255, 0.9);">AI analysis in progress... This may take a while.</p>
+    
+    <!-- Progress Dots -->
+    <div class="loading-dots" style="margin-top: 20px; font-size: 2rem; letter-spacing: 5px;">
+      <span style="animation: blink 1.4s infinite both; animation-delay: 0s;">.</span><span style="animation: blink 1.4s infinite both; animation-delay: 0.2s;">.</span><span style="animation: blink 1.4s infinite both; animation-delay: 0.4s;">.</span>
+    </div>
+  </div>
+</div>
+
 <!-- Download Ready Modal -->
 <div class="modal fade" id="downloadReadyModal" tabindex="-1" aria-labelledby="downloadReadyModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -256,9 +273,6 @@
         <p class="mb-4">
           <strong id="downloadModalFilename" style="color: #495057;"></strong>
         </p>
-        <div class="alert alert-info small mb-0">
-          <i class="bi bi-cloud-upload"></i> Document has been automatically uploaded to SharePoint
-        </div>
       </div>
       <div class="modal-footer justify-content-center">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -283,14 +297,24 @@ function showDownloadModal(downloadUrl, filename, standardsApplied) {
   
   // Set up download button
   downloadBtn.onclick = function() {
-    window.location.href = downloadUrl;
-    // Close modal after initiating download
+    // Trigger download
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Close modal and redirect to dashboard
+    const modalEl = document.getElementById('downloadReadyModal');
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) {
+      modalInstance.hide();
+    }
+    
+    // Redirect to dashboard after brief delay to ensure download starts
     setTimeout(() => {
-      const modalEl = document.getElementById('downloadReadyModal');
-      const modalInstance = bootstrap.Modal.getInstance(modalEl);
-      if (modalInstance) {
-        modalInstance.hide();
-      }
+      window.location.href = '/';
     }, 500);
   };
   
@@ -373,10 +397,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const checkedCount = document.querySelectorAll('.apply-checkbox:checked').length;
     if (checkedCount === 0) {
       alert('Please select at least one standard to apply.');
-      return;
-    }
-    
-    if (!confirm(`Apply ${checkedCount} selected suggestion${checkedCount !== 1 ? 's' : ''} to this contract?\n\nThis will create an edited document with an appendix containing the suggested standards.`)) {
       return;
     }
     
@@ -555,10 +575,34 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+
+  // Show loading overlay when AI analysis form is submitted
+  const analysisForm = document.querySelector('form[action*="/analyze"]');
+  if (analysisForm) {
+    analysisForm.addEventListener('submit', function(e) {
+      // Show the loading overlay
+      const overlay = document.getElementById('analysisLoadingOverlay');
+      if (overlay) {
+        overlay.style.display = 'flex';
+      }
+      // Form will submit normally and redirect to results page
+    });
+  }
 });
 </script>
 
 <style>
+/* Loading Spinner Animations */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0; }
+  40% { opacity: 1; }
+}
+
 /* Standards selection styling */
 .standards-selection label:hover {
   background: #e9ecef !important;

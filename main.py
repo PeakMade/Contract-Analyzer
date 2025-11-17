@@ -32,7 +32,7 @@ app.config['CLIENT_ID'] = os.getenv('O365_CLIENT_ID')
 app.config['CLIENT_SECRET'] = os.getenv('O365_CLIENT_SECRET')
 app.config['TENANT_ID'] = os.getenv('O365_TENANT_ID')
 app.config['AUTHORITY'] = f"https://login.microsoftonline.com/{app.config['TENANT_ID']}"
-app.config['SCOPE'] = ["User.Read"]  # Start with basic scope
+app.config['SCOPE'] = ["User.Read", "Sites.Read.All"]  # Include SharePoint access
 app.config['REDIRECT_URI'] = os.getenv('REDIRECT_URI', 'http://localhost:5000/auth/redirect')
 
 print(f"DEBUG: CLIENT_ID: {app.config['CLIENT_ID'][:10] + '...' if app.config['CLIENT_ID'] else 'None'}")
@@ -138,7 +138,7 @@ def submit_contract():
                 'additional_notes': additional_notes
             }
             
-            flash(f'Contract "{contract_name}" uploaded successfully to SharePoint!', 'success')
+            flash(f'Contract "{contract_name}" uploaded successfully!', 'success')
             return jsonify({
                 'success': True, 
                 'message': f'Contract submitted successfully! Contract ID: {upload_result["contract_id"]}',
@@ -682,10 +682,21 @@ def apply_suggestions_action(contract_id):
         sharepoint_item_id = contract.get('id')
         drive_id = contract.get('DriveId') or os.getenv('DRIVE_ID')
         original_filename = contract.get('FileName', 'contract.docx')
+        
+        # Strip ContractID prefix from filename for edited document naming
+        # Format is: ContractID_OriginalDocName.docx
+        # We want just: OriginalDocName.docx
+        if '_' in original_filename:
+            # Remove the ContractID prefix (first 9 chars: 8-char ID + underscore)
+            original_doc_name = '_'.join(original_filename.split('_')[1:])
+        else:
+            original_doc_name = original_filename
+        
         print(f"✓ Contract metadata retrieved")
         print(f"  SharePoint Item ID: {sharepoint_item_id}")
         print(f"  Drive ID: {drive_id}")
         print(f"  Filename: {original_filename}")
+        print(f"  Original doc name: {original_doc_name}")
         
         # Download original document
         print(f"\nStep 2: Downloading original document: {original_filename}")
@@ -730,9 +741,9 @@ def apply_suggestions_action(contract_id):
                 edited_content = f.read()
             print(f"✓ Read {len(edited_content):,} bytes")
             
-            # Generate edited filename
-            edited_filename = sp_upload.generate_edited_filename(original_filename)
-            print(f"✓ Generated filename: {edited_filename}")
+            # Generate edited filename using original document name (without ContractID prefix)
+            edited_filename = sp_upload.generate_edited_filename(original_doc_name)
+            print(f"✓ Generated edited filename: {edited_filename}")
             
             # Upload to SharePoint
             print(f"\nStep 7: Uploading edited document to SharePoint...")

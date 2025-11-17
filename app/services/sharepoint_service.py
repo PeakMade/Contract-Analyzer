@@ -131,12 +131,24 @@ class SharePointService:
             # Generate unique contract ID and filename
             contract_id = str(uuid.uuid4())[:8].upper()
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            # Use original filename with contract ID prefix and length limit
+            file_basename = os.path.splitext(file_name)[0]
             file_extension = os.path.splitext(file_name)[1]
-            safe_contract_name = "".join(c for c in contract_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
-            unique_filename = f"{contract_id}_{safe_contract_name}_{timestamp}{file_extension}"
+            safe_basename = "".join(c for c in file_basename if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            
+            # Calculate max length: 100 total - contract_id (9 chars including underscore) - extension length
+            max_basename_length = 100 - len(contract_id) - 1 - len(file_extension)
+            
+            # Truncate basename if necessary
+            if len(safe_basename) > max_basename_length:
+                safe_basename = safe_basename[:max_basename_length].rstrip()
+                print(f"Filename truncated to fit 100 character limit")
+            
+            unique_filename = f"{contract_id}_{safe_basename}{file_extension}"
             
             print(f"Contract ID: {contract_id}")
-            print(f"Unique Filename: {unique_filename}")
+            print(f"Unique Filename: {unique_filename} ({len(unique_filename)} chars)")
             
             # Upload file to ContractFiles library (root, not in Contracts subfolder)
             upload_url = f"{self.graph_url}/drives/{self.drive_id}/root:/{unique_filename}:/content"
@@ -250,6 +262,11 @@ class SharePointService:
             print(f"Date Requested: {date_requested}")
             print(f"Business Terms Array: {business_terms_array}")
             
+            # Truncate document URL to 255 characters (SharePoint hyperlink field limit)
+            truncated_doc_url = document_url[:255] if len(document_url) > 255 else document_url
+            if len(document_url) > 255:
+                print(f"⚠️ Document URL truncated from {len(document_url)} to 255 characters")
+            
             # Create list item data matching the SharePoint list structure
             # Field names must match SharePoint internal column names exactly
             list_item_data = {
@@ -267,7 +284,7 @@ class SharePointService:
                     'Status': 'Submitted',  # Changed from 'SUBMITTED' to 'Submitted' (title case)
                     'EstimatedReviewCompletion': None,  # None (null) for optional date field
                     'ContractID': contract_id,
-                    'Document_x0020_Link': document_url,  # "Document Link" column with space encoded as _x0020_
+                    'Document_x0020_Link': truncated_doc_url,  # "Document Link" column with space encoded as _x0020_ (255 char limit)
                     'filename': file_name  # lowercase 'filename' as shown in SharePoint screenshot
                 }
             }
