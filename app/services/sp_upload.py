@@ -71,17 +71,32 @@ def upload_file(
     
     # Construct upload URL
     # Format: /drives/{driveId}/root:/{folder_path}/{filename}:/content
+    # URL encode only the filename to handle spaces and special characters
+    from urllib.parse import quote
+    
+    print(f"\n=== DEBUGGING URL CONSTRUCTION ===")
+    print(f"Raw filename: '{filename}'")
+    print(f"Filename length: {len(filename)}")
+    print(f"Folder path: '{folder_path}'")
+    print(f"Drive ID: '{drive_id}'")
+    
+    # URL encode the filename (not the path separators)
+    encoded_filename = quote(filename)
+    print(f"Encoded filename: '{encoded_filename}'")
+    
     if folder_path and folder_path.strip():
         # Remove leading/trailing slashes from folder_path
         folder_path = folder_path.strip('/')
-        path = f"{folder_path}/{filename}"
-        print(f"Upload path (with folder): {path}")
+        path = f"{folder_path}/{encoded_filename}"
+        print(f"Path (with folder): '{path}'")
     else:
-        path = filename
-        print(f"Upload path (root): {path}")
+        path = encoded_filename
+        print(f"Path (root): '{path}'")
     
     url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{path}:/content"
-    print(f"Upload URL: {url}")
+    print(f"Final URL: {url}")
+    print(f"URL length: {len(url)}")
+    print(f"=== END URL CONSTRUCTION ===\n")
     
     headers = {
         'Authorization': f'Bearer {token}',

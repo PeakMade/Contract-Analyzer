@@ -683,20 +683,36 @@ def apply_suggestions_action(contract_id):
         drive_id = contract.get('DriveId') or os.getenv('DRIVE_ID')
         original_filename = contract.get('FileName', 'contract.docx')
         
-        # Strip ContractID prefix from filename for edited document naming
-        # Format is: ContractID_OriginalDocName.docx
-        # We want just: OriginalDocName.docx
-        if '_' in original_filename:
-            # Remove the ContractID prefix (first 9 chars: 8-char ID + underscore)
-            original_doc_name = '_'.join(original_filename.split('_')[1:])
-        else:
-            original_doc_name = original_filename
+        # Get the contract name (user-provided name without ContractID prefix)
+        # Use ContractName field from SharePoint for edited document naming
+        contract_name = contract.get('name', 'contract')
         
+        print(f"\n=== DEBUGGING CONTRACT NAME ===")
+        print(f"Raw contract.get('name'): '{contract_name}'")
+        
+        # Sanitize filename - remove invalid characters for Windows/SharePoint
+        # Invalid characters: < > : " / \ | ? *
+        import re
+        safe_contract_name = re.sub(r'[<>:"/\\|?*]', '_', contract_name)
+        print(f"Sanitized contract name: '{safe_contract_name}'")
+        
+        # Ensure it has .docx extension
+        if not safe_contract_name.lower().endswith(('.docx', '.doc')):
+            original_doc_name = f"{safe_contract_name}.docx"
+            print(f"Added .docx extension")
+        else:
+            original_doc_name = safe_contract_name
+            print(f"Already has extension")
+        
+        print(f"Final contract name for editing: '{original_doc_name}'")
+        print(f"=== END CONTRACT NAME DEBUG ===\n")
+        
+        # Ensure we have just the base name without extension
         print(f"✓ Contract metadata retrieved")
         print(f"  SharePoint Item ID: {sharepoint_item_id}")
         print(f"  Drive ID: {drive_id}")
-        print(f"  Filename: {original_filename}")
-        print(f"  Original doc name: {original_doc_name}")
+        print(f"  Original filename (with ID): {original_filename}")
+        print(f"  Base contract name (no extension): {original_doc_name}")
         
         # Download original document
         print(f"\nStep 2: Downloading original document: {original_filename}")
