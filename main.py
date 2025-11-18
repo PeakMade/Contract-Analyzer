@@ -867,8 +867,13 @@ def download_edited_contract(contract_id):
         file_info = session.get(f'edited_file_{contract_id}')
         if not file_info:
             print(f"✗ ERROR: No edited file found in session")
-            print(f"Available keys: {[k for k in session.keys() if 'edited' in k]}")
-            return jsonify({'error': 'No edited file found'}), 404
+            print(f"Available session keys: {list(session.keys())}")
+            print(f"SESSION_COOKIE_SECURE: {app.config.get('SESSION_COOKIE_SECURE')}")
+            print(f"Request has session cookie: {bool(request.cookies.get('session'))}")
+            return jsonify({
+                'error': 'No edited file found',
+                'message': 'Session may have expired. Please try applying suggestions again.'
+            }), 404
         
         filename = file_info['filename']
         drive_id = file_info['drive_id']

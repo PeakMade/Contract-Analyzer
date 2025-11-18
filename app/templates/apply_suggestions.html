@@ -259,17 +259,48 @@ function showDownloadModal(downloadUrl, filename, standardsApplied) {
     messageEl.textContent = `Successfully applied ${standardsApplied} standard${standardsApplied !== 1 ? 's' : ''} to your contract.`;
     filenameEl.textContent = filename;
     
-    // Set up download button
+    // Set up download button with Fetch API + Blob download
+    // This approach avoids page navigation and properly includes session cookies
     downloadBtn.onclick = function() {
-        // Trigger download directly - this is more reliable than creating a link element
-        // The browser will automatically download the file due to Content-Disposition header
-        window.location.href = downloadUrl;
-        
-        // Show success message
-        downloadBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Download Started';
         downloadBtn.disabled = true;
+        downloadBtn.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm me-2"></i>Downloading...';
         downloadBtn.classList.remove('btn-success');
         downloadBtn.classList.add('btn-secondary');
+        
+        fetch(downloadUrl, {
+            method: 'GET',
+            credentials: 'same-origin'  // Include session cookies
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            // Create a download link and trigger it
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            // Show success message
+            downloadBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Downloaded Successfully';
+        })
+        .catch(error => {
+            console.error('Download error:', error);
+            downloadBtn.innerHTML = '<i class="bi bi-x-circle me-2"></i>Download Failed - Click to Retry';
+            downloadBtn.classList.remove('btn-secondary');
+            downloadBtn.classList.add('btn-danger');
+            downloadBtn.disabled = false;
+        });
     };
     
     // Show the modal
