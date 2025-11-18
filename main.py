@@ -792,17 +792,8 @@ def apply_suggestions_action(contract_id):
                 print(f"✗ UploadError: {str(e)}")
                 return jsonify({'error': 'Upload failed', 'message': str(e)}), 502
             
-            # Store edited file info in session for download
-            print(f"\nStep 8: Storing file info in session...")
-            session[f'edited_file_{contract_id}'] = {
-                'filename': edited_filename,
-                'drive_id': drive_id,
-                'uploaded_at': datetime.utcnow().isoformat()
-            }
-            print(f"✓ Session updated")
-            
             # Update status to "Analyzed" in SharePoint (matches SharePoint choice field)
-            print(f"\nStep 9: Updating status to 'Analyzed' for contract {contract_id}...")
+            print(f"\nStep 8: Updating status to 'Analyzed' for contract {contract_id}...")
             if sharepoint_item_id:
                 status_updated = sharepoint_service.update_contract_field(sharepoint_item_id, 'Status', 'Analyzed')
                 if status_updated:
@@ -855,6 +846,7 @@ def download_edited_contract(contract_id):
     """Download the edited contract document."""
     from flask import send_file
     from io import BytesIO
+    from app.services.sharepoint_service import sharepoint_service
     
     print(f"\n{'='*70}")
     print(f"DOWNLOAD EDITED: Contract {contract_id}")
@@ -862,59 +854,61 @@ def download_edited_contract(contract_id):
     print(f"User: {session.get('user_email', 'Unknown')}")
     
     try:
-        # Get edited file info from session
-        print(f"\nLooking for session key: edited_file_{contract_id}")
-        file_info = session.get(f'edited_file_{contract_id}')
-        if not file_info:
-            print(f"✗ ERROR: No edited file found in session")
-            print(f"Available session keys: {list(session.keys())}")
-            print(f"SESSION_COOKIE_SECURE: {app.config.get('SESSION_COOKIE_SECURE')}")
-            print(f"Request has session cookie: {bool(request.cookies.get('session'))}")
-            return jsonify({
-                'error': 'No edited file found',
-                'message': 'Session may have expired. Please try applying suggestions again.'
-            }), 404
+        # Get contract metadata from SharePoint instead of session (session-independent)
+        print(f"\nFetching contract metadata from SharePoint...")
+        contract = sharepoint_service.get_contract_by_id(contract_id)
+        if not contract:
+            print(f"✗ ERROR: Contract not found: {contract_id}")
+            return jsonify({'error': 'Contract not found'}), 404
         
-        filename = file_info['filename']
-        drive_id = file_info['drive_id']
-        print(f"✓ Found edited file:")
-        print(f"  Filename: {filename}")
-        print(f"  Drive ID: {drive_id}")
+        # Get original filename and construct edited filename
+        uploaded_filename = contract.get('file_name', 'contract_uploaded.docx')
+        print(f"Original uploaded filename: {uploaded_filename}")
         
+        # Extract base name and construct edited filename
+        import re
+        base_filename = uploaded_filename.rsplit('.', 1)[0] if '.' in uploaded_filename else uploaded_filename
+        base_filename = re.sub(r'_(uploaded|edited|completed)$', '', base_filename)
+        edited_filename = f"{base_filename}_edited.docx"
+        
+        print(f"Looking for edited file: {edited_filename}")
+        
+        drive_id = contract.get('DriveId') or os.getenv('DRIVE_ID')
+        print(f"Drive ID: {drive_id}")
+        
+        # Download edited file from SharePoint
         print(f"\nDownloading edited file from SharePoint...")
-        
-        # Download from SharePoint using the same approach as original
-        # We'll use the drive_id and filename to construct the download
         try:
             from app.services.sp_download import download_contract_by_filename
-            content = download_contract_by_filename(drive_id, filename)
+            content = download_contract_by_filename(drive_id, edited_filename)
             print(f"✓ Downloaded {len(content):,} bytes")
         except FileNotFoundError:
             print(f"✗ ERROR: Edited file not found in SharePoint")
-            return jsonify({'error': 'Edited file not found in SharePoint'}), 404
+            return jsonify({
+                'error': 'Edited file not found',
+                'message': 'The edited document may not have been created yet. Please try applying suggestions again.'
+            }), 404
         except PermissionError as e:
             print(f"✗ ERROR: Permission denied - {e}")
             if 'SESSION_EXPIRED' in str(e):
-                flash('Session expired — please sign in again', 'error')
-                return redirect(url_for('login'))
+                return jsonify({'error': 'Session expired', 'message': 'Please sign in again'}), 401
             raise
         
         # Send file as attachment
-        print(f"✓ Sending file to user: {filename}")
+        print(f"✓ Sending file to user: {edited_filename}")
         print(f"{'='*70}\n")
         return send_file(
             BytesIO(content),
             mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             as_attachment=True,
-            download_name=filename
+            download_name=edited_filename
         )
     
     except Exception as e:
         print(f"Error downloading edited contract: {str(e)}")
         import traceback
         traceback.print_exc()
-        flash('Error downloading edited contract.', 'error')
-        return redirect(url_for('dashboard'))
+        return jsonify({'error': 'Download failed', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

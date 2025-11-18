@@ -259,48 +259,33 @@ function showDownloadModal(downloadUrl, filename, standardsApplied) {
     messageEl.textContent = `Successfully applied ${standardsApplied} standard${standardsApplied !== 1 ? 's' : ''} to your contract.`;
     filenameEl.textContent = filename;
     
-    // Set up download button with Fetch API + Blob download
-    // This approach avoids page navigation and properly includes session cookies
+    // Set up download button with iframe method (session-independent, reliable)
     downloadBtn.onclick = function() {
+        console.log('[Download] Starting download:', downloadUrl);
         downloadBtn.disabled = true;
         downloadBtn.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm me-2"></i>Downloading...';
         downloadBtn.classList.remove('btn-success');
         downloadBtn.classList.add('btn-secondary');
         
-        fetch(downloadUrl, {
-            method: 'GET',
-            credentials: 'same-origin'  // Include session cookies
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-            }
-            return response.blob();
-        })
-        .then(blob => {
-            // Create a download link and trigger it
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
+        // Create hidden iframe for download (most reliable method for all browsers)
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = downloadUrl;
+        document.body.appendChild(iframe);
+        
+        // Show success after a short delay (download has started)
+        setTimeout(function() {
+            console.log('[Download] Download initiated successfully');
+            downloadBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Download Started';
             
-            // Cleanup
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            
-            // Show success message
-            downloadBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Downloaded Successfully';
-        })
-        .catch(error => {
-            console.error('Download error:', error);
-            downloadBtn.innerHTML = '<i class="bi bi-x-circle me-2"></i>Download Failed - Click to Retry';
-            downloadBtn.classList.remove('btn-secondary');
-            downloadBtn.classList.add('btn-danger');
-            downloadBtn.disabled = false;
-        });
+            // Remove iframe after download starts
+            setTimeout(function() {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+                console.log('[Download] Cleanup complete');
+            }, 2000);
+        }, 1000);
     };
     
     // Show the modal
@@ -391,6 +376,7 @@ document.addEventListener('DOMContentLoaded', function() {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'same-origin',  // Include session cookies
             body: JSON.stringify({
                 items: selectedItems
             })
