@@ -250,7 +250,7 @@
 
 <script>
 // Function to show download modal
-function showDownloadModal(downloadUrl, filename, standardsApplied) {
+function showDownloadModal(downloadPath, filename, standardsApplied) {
     // Update modal content
     const messageEl = document.getElementById('downloadModalMessage');
     const filenameEl = document.getElementById('downloadModalFilename');
@@ -259,18 +259,19 @@ function showDownloadModal(downloadUrl, filename, standardsApplied) {
     messageEl.textContent = `Successfully applied ${standardsApplied} standard${standardsApplied !== 1 ? 's' : ''} to your contract.`;
     filenameEl.textContent = filename;
     
-    // Set up download button with iframe method (session-independent, reliable)
+    // Set up download button with iframe method using relative path
+    // Relative path works reliably with Azure proxy (same-origin, no mixed content issues)
     downloadBtn.onclick = function() {
-        console.log('[Download] Starting download:', downloadUrl);
+        console.log('[Download] Starting download:', downloadPath);
         downloadBtn.disabled = true;
         downloadBtn.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm me-2"></i>Downloading...';
         downloadBtn.classList.remove('btn-success');
         downloadBtn.classList.add('btn-secondary');
         
-        // Create hidden iframe for download (most reliable method for all browsers)
+        // Create hidden iframe for download with RELATIVE path (Azure proxy compatible)
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
-        iframe.src = downloadUrl;
+        iframe.src = downloadPath;  // Relative path: /contracts/ABC/download_edited?exp=...&sig=...
         document.body.appendChild(iframe);
         
         // Show success after a short delay (download has started)
@@ -390,9 +391,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
-            if (data.success && data.download_url) {
-                // Show modal with download button instead of auto-download
-                showDownloadModal(data.download_url, data.filename, data.standards_applied);
+            if (data.success && data.download_path) {
+                // Show modal with download button (using relative path)
+                showDownloadModal(data.download_path, data.filename, data.standards_applied);
                 
                 // Update buttons to show completion (keep disabled to prevent double-click)
                 applyBtnTop.innerHTML = '<i class="bi bi-check-circle me-2"></i>Applied Successfully';

@@ -22,10 +22,24 @@ app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key')
 print(f"DEBUG: Flask app created")
 print(f"DEBUG: SECRET_KEY set: {bool(app.secret_key)}")
 
-# Configure session to handle large data
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# Configure Flask for Azure App Service behind reverse proxy
+# ProxyFix ensures url_for() generates correct HTTPS URLs and handles proxy headers
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_for=1,      # Trust X-Forwarded-For (client IP)
+    x_proto=1,    # Trust X-Forwarded-Proto (http/https)
+    x_host=1,     # Trust X-Forwarded-Host (original host)
+    x_prefix=1    # Trust X-Forwarded-Prefix (path prefix)
+)
+
+# Configure for production HTTPS environment (Azure)
+app.config.update(
+    PREFERRED_URL_SCHEME='https',      # Azure serves over HTTPS
+    SESSION_COOKIE_SECURE=True,        # Cookies only sent over HTTPS
+    SESSION_COOKIE_HTTPONLY=True,      # Prevent JavaScript access to cookies
+    SESSION_COOKIE_SAMESITE='Lax'      # Same-origin iframe works; blocks CSRF
+)
 
 # MSAL Configuration
 app.config['CLIENT_ID'] = os.getenv('O365_CLIENT_ID')
@@ -803,21 +817,19 @@ def apply_suggestions_action(contract_id):
             else:
                 print(f"⚠ SharePoint item ID not available for status update (non-critical)")
             
-            # Generate download URL
-            download_url = url_for(
-                'download_edited_contract',
-                contract_id=contract_id,
-                _external=True
-            )
+            # Generate signed download path (relative URL, 5-minute TTL)
+            # This allows download even if session expires within the TTL window
+            from app.utils.signed_url import make_signed_path
+            download_path = make_signed_path(contract_id, ttl_sec=300)
             
             print(f"\n✓✓✓ SUCCESS ✓✓✓")
             print(f"  Standards applied: {len(items)}")
-            print(f"  Download URL: {download_url}")
+            print(f"  Download path: {download_path}")
             print(f"{'='*70}\n")
             
             return jsonify({
                 'success': True,
-                'download_url': download_url,
+                'download_path': download_path,  # Changed from download_url to download_path
                 'filename': edited_filename,
                 'standards_applied': len(items)
             })
@@ -841,20 +853,57 @@ def apply_suggestions_action(contract_id):
 
 
 @app.route('/contracts/<contract_id>/download_edited')
-@login_required
 def download_edited_contract(contract_id):
-    """Download the edited contract document."""
-    from flask import send_file
+    """
+    Download the edited contract document.
+    
+    Supports two authentication methods:
+    1. Session-based (logged in user with @login_required)
+    2. Signed URL (temporary access via HMAC signature)
+    
+    Query params for signed URL:
+        exp: Expiration timestamp (seconds since epoch)
+        sig: HMAC-SHA256 signature
+    """
+    from flask import send_file, request
     from io import BytesIO
     from app.services.sharepoint_service import sharepoint_service
+    from app.utils.signed_url import verify_signed
     
     print(f"\n{'='*70}")
     print(f"DOWNLOAD EDITED: Contract {contract_id}")
     print(f"{'='*70}")
-    print(f"User: {session.get('user_email', 'Unknown')}")
+    
+    # Check authentication: session OR signed URL
+    authenticated = False
+    auth_method = None
+    
+    # Method 1: Check signed URL parameters
+    exp = request.args.get('exp')
+    sig = request.args.get('sig')
+    if exp and sig:
+        if verify_signed(contract_id, exp, sig):
+            authenticated = True
+            auth_method = 'signed_url'
+            print(f"✓ Authenticated via signed URL (expires: {exp})")
+        else:
+            print(f"✗ Invalid or expired signed URL")
+            return jsonify({'error': 'Invalid or expired download link'}), 403
+    
+    # Method 2: Check session (fallback)
+    if not authenticated:
+        if 'user_email' in session:
+            authenticated = True
+            auth_method = 'session'
+            print(f"✓ Authenticated via session: {session.get('user_email')}")
+        else:
+            print(f"✗ No authentication provided (no session, no signature)")
+            return jsonify({'error': 'Authentication required'}), 401
+    
+    print(f"Auth method: {auth_method}")
     
     try:
-        # Get contract metadata from SharePoint instead of session (session-independent)
+        # Get contract metadata from SharePoint (session-independent)
         print(f"\nFetching contract metadata from SharePoint...")
         contract = sharepoint_service.get_contract_by_id(contract_id)
         if not contract:
