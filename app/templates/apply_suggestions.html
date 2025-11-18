@@ -261,15 +261,11 @@ function showDownloadModal(downloadUrl, filename, standardsApplied) {
     
     // Set up download button
     downloadBtn.onclick = function() {
-        // Create a hidden link to trigger download without navigation
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        // Trigger download directly - this is more reliable than creating a link element
+        // The browser will automatically download the file due to Content-Disposition header
+        window.location.href = downloadUrl;
         
-        // Just show success message, don't redirect
+        // Show success message
         downloadBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Download Started';
         downloadBtn.disabled = true;
         downloadBtn.classList.remove('btn-success');
@@ -381,11 +377,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Show modal with download button instead of auto-download
                 showDownloadModal(data.download_url, data.filename, data.standards_applied);
                 
-                // Reset buttons
-                applyBtnTop.innerHTML = originalTextTop;
-                applyBtnBottom.innerHTML = originalTextBottom;
-                applyBtnTop.disabled = false;
-                applyBtnBottom.disabled = false;
+                // Update buttons to show completion (keep disabled to prevent double-click)
+                applyBtnTop.innerHTML = '<i class="bi bi-check-circle me-2"></i>Applied Successfully';
+                applyBtnBottom.innerHTML = '<i class="bi bi-check-circle me-2"></i>Applied Successfully';
+                applyBtnTop.disabled = true;
+                applyBtnBottom.disabled = true;
+                applyBtnTop.classList.remove('btn-success');
+                applyBtnTop.classList.add('btn-secondary');
+                applyBtnBottom.classList.remove('btn-success');
+                applyBtnBottom.classList.add('btn-secondary');
             } else {
                 throw new Error('Invalid response from server');
             }

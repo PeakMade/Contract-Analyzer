@@ -128,24 +128,33 @@ class SharePointService:
             print(f"File Name: {file_name}")
             print(f"Submitter: {submitter_name} ({submitter_email})")
             
-            # Generate unique contract ID and filename
+            # Generate unique contract ID
             contract_id = str(uuid.uuid4())[:8].upper()
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             
-            # Use original filename with contract ID prefix and length limit
-            file_basename = os.path.splitext(file_name)[0]
-            file_extension = os.path.splitext(file_name)[1]
-            safe_basename = "".join(c for c in file_basename if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            # Use original uploaded filename (without extension) for naming
+            # Extract base name without extension
+            import re
+            base_filename = file_name.rsplit('.', 1)[0] if '.' in file_name else file_name
             
-            # Calculate max length: 100 total - contract_id (9 chars including underscore) - extension length
-            max_basename_length = 100 - len(contract_id) - 1 - len(file_extension)
+            # Sanitize filename (remove invalid characters)
+            # Invalid characters for Windows/SharePoint: < > : " / \ | ? *
+            safe_filename = re.sub(r'[<>:"/\\|?*]', '_', base_filename)
+            safe_filename = safe_filename.strip()
             
-            # Truncate basename if necessary
-            if len(safe_basename) > max_basename_length:
-                safe_basename = safe_basename[:max_basename_length].rstrip()
+            # Replace spaces with underscores for cleaner filenames
+            safe_filename = safe_filename.replace(' ', '_')
+            
+            # Calculate max length: 100 total - "_uploaded.docx" (14 chars)
+            max_basename_length = 100 - 14  # 86 characters max
+            
+            # Truncate if necessary
+            if len(safe_filename) > max_basename_length:
+                safe_filename = safe_filename[:max_basename_length].rstrip('_')
                 print(f"Filename truncated to fit 100 character limit")
             
-            unique_filename = f"{contract_id}_{safe_basename}{file_extension}"
+            # Generate filename: OriginalFilename_uploaded.docx
+            unique_filename = f"{safe_filename}_uploaded.docx"
             
             print(f"Contract ID: {contract_id}")
             print(f"Unique Filename: {unique_filename} ({len(unique_filename)} chars)")
@@ -444,7 +453,7 @@ class SharePointService:
         Check if a completed version of the document exists in ContractFiles library
         
         Args:
-            filename: Original filename (e.g., "TestContract.docx")
+            filename: Original filename (e.g., "ContractName_uploaded.docx")
             
         Returns:
             str: URL to completed document if found, empty string otherwise
@@ -455,6 +464,11 @@ class SharePointService:
             
             # Construct expected completed filename
             base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
+            
+            # Remove _uploaded, _edited, or _completed suffix if present
+            import re
+            base_name = re.sub(r'_(uploaded|edited|completed)$', '', base_name)
+            
             completed_filename = f"{base_name}_completed.docx"
             
             # Sanitize filename

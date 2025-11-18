@@ -275,12 +275,25 @@ def upload_completed_contract():
         if not file or not contract_id:
             return jsonify({'success': False, 'message': 'Missing file or contract_id'}), 400
         
-        # Use the uploaded file's name and add _completed suffix
-        uploaded_filename = file.filename
-        base_name = uploaded_filename.rsplit('.', 1)[0] if '.' in uploaded_filename else uploaded_filename
+        # Get the original uploaded filename from SharePoint to ensure consistent naming
+        contract = sharepoint_service.get_contract_by_id(contract_id)
+        if contract:
+            # Use the original filename stored in SharePoint
+            original_uploaded_filename = contract.get('file_name', file.filename)
+            print(f"Original uploaded filename from SharePoint: {original_uploaded_filename}")
+        else:
+            # Fallback to the uploaded file's name if contract not found
+            original_uploaded_filename = file.filename
+            print(f"Warning: Contract not found, using uploaded filename: {original_uploaded_filename}")
+        
+        # Extract base name and remove any existing suffix
+        import re
+        base_name = original_uploaded_filename.rsplit('.', 1)[0] if '.' in original_uploaded_filename else original_uploaded_filename
+        base_name = re.sub(r'_(uploaded|edited|completed)$', '', base_name)
+        
         completed_filename = f"{base_name}_completed.docx"
         
-        print(f"Uploaded filename: {uploaded_filename}")
+        print(f"Base name (cleaned): {base_name}")
         print(f"Completed filename: {completed_filename}")
         
         # Upload the completed file to ContractFiles
@@ -681,41 +694,40 @@ def apply_suggestions_action(contract_id):
         # Store the SharePoint list item ID for later status update
         sharepoint_item_id = contract.get('id')
         drive_id = contract.get('DriveId') or os.getenv('DRIVE_ID')
-        original_filename = contract.get('FileName', 'contract.docx')
         
-        # Get the contract name (user-provided name without ContractID prefix)
-        # Use ContractName field from SharePoint for edited document naming
-        contract_name = contract.get('name', 'contract')
+        # Get the original uploaded filename from SharePoint (stored in 'filename' field)
+        # This is the OriginalFilename_uploaded.docx that was stored during upload
+        uploaded_filename = contract.get('file_name', 'contract_uploaded.docx')
         
-        print(f"\n=== DEBUGGING CONTRACT NAME ===")
-        print(f"Raw contract.get('name'): '{contract_name}'")
+        print(f"\n=== DEBUGGING FILENAME FOR EDITED DOC ===")
+        print(f"Uploaded filename from SharePoint: '{uploaded_filename}'")
         
-        # Sanitize filename - remove invalid characters for Windows/SharePoint
-        # Invalid characters: < > : " / \ | ? *
+        # Extract the base name without the _uploaded suffix and extension
+        # Example: "Phonesuite_1231_uploaded.docx" -> "Phonesuite_1231"
         import re
-        safe_contract_name = re.sub(r'[<>:"/\\|?*]', '_', contract_name)
-        print(f"Sanitized contract name: '{safe_contract_name}'")
+        base_filename = uploaded_filename.rsplit('.', 1)[0] if '.' in uploaded_filename else uploaded_filename
         
-        # Ensure it has .docx extension
-        if not safe_contract_name.lower().endswith(('.docx', '.doc')):
-            original_doc_name = f"{safe_contract_name}.docx"
-            print(f"Added .docx extension")
-        else:
-            original_doc_name = safe_contract_name
-            print(f"Already has extension")
+        # Remove _uploaded, _edited, or _completed suffix if present
+        base_filename = re.sub(r'_(uploaded|edited|completed)$', '', base_filename)
         
-        print(f"Final contract name for editing: '{original_doc_name}'")
-        print(f"=== END CONTRACT NAME DEBUG ===\n")
+        print(f"Base filename (cleaned): '{base_filename}'")
+        
+        # For edited document, we need the base name with .docx extension
+        # The generate_edited_filename function will add "_edited.docx"
+        original_doc_name = f"{base_filename}.docx"
+        
+        print(f"Final filename for editing: '{original_doc_name}'")
+        print(f"=== END FILENAME DEBUG ===\n")
         
         # Ensure we have just the base name without extension
         print(f"✓ Contract metadata retrieved")
         print(f"  SharePoint Item ID: {sharepoint_item_id}")
         print(f"  Drive ID: {drive_id}")
-        print(f"  Original filename (with ID): {original_filename}")
-        print(f"  Base contract name (no extension): {original_doc_name}")
+        print(f"  Uploaded filename: {uploaded_filename}")
+        print(f"  Base filename for editing: {original_doc_name}")
         
         # Download original document
-        print(f"\nStep 2: Downloading original document: {original_filename}")
+        print(f"\nStep 2: Downloading original document: {uploaded_filename}")
         try:
             doc_path = download_contract(contract_id)
             doc_size = doc_path.stat().st_size
