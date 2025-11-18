@@ -43,7 +43,18 @@
 
     <!-- Analysis Results Table -->
     {% if summary %}
-    <form id="applySuggestionsForm" method="POST" action="{{ url_for('apply_suggestions_action', contract_id=contract_id) }}"
+    <form id="applySuggestionsForm" method="POST" action="{{ url_for('apply_suggestions_action', contract_id=contract_id) }}">
+        
+        <!-- Top Apply Button -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <span id="selectedCountTop" class="text-muted">0 standards selected</span>
+            </div>
+            <button type="submit" id="applySelectedBtnTop" class="btn btn-success btn-lg" disabled>
+                <i class="bi bi-check-square"></i> Apply Selected
+            </button>
+        </div>
+        
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-primary text-white">
                 <div class="d-flex justify-content-between align-items-center">
@@ -158,15 +169,15 @@
             </div>
         </div>
 
-        <!-- Selection Count -->
-        <div class="mb-4">
-            <span id="selectedCount" class="text-muted">0 standards selected</span>
+        <!-- Bottom Apply Button -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <span id="selectedCountBottom" class="text-muted">0 standards selected</span>
+            </div>
+            <button type="submit" id="applySelectedBtnBottom" class="btn btn-success btn-lg" disabled>
+                <i class="bi bi-check-square"></i> Apply Selected
+            </button>
         </div>
-        
-        <!-- Sticky Apply Button -->
-        <button type="submit" id="applySelectedBtn" class="btn btn-success sticky-apply-btn" disabled>
-            <i class="bi bi-check-square"></i> Apply Selected
-        </button>
     </form>
     {% else %}
     <div class="alert alert-warning">
@@ -204,43 +215,6 @@
 </div>
 {% endif %}
 {% endfor %}
-
-<style>
-/* Sticky Apply Button */
-.sticky-apply-btn {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    z-index: 999;
-    padding: 12px 24px;
-    font-size: 1rem;
-    font-weight: 600;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    border-radius: 8px;
-    transition: all 0.3s ease;
-}
-
-.sticky-apply-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
-}
-
-.sticky-apply-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .sticky-apply-btn {
-        bottom: 20px;
-        right: 20px;
-        padding: 10px 20px;
-        font-size: 0.9rem;
-    }
-}
-</style>
 
 <!-- Download Ready Modal -->
 <div class="modal fade" id="downloadReadyModal" tabindex="-1" aria-labelledby="downloadReadyModalLabel" aria-hidden="true">
@@ -295,16 +269,11 @@ function showDownloadModal(downloadUrl, filename, standardsApplied) {
         link.click();
         document.body.removeChild(link);
         
-        // Close modal and redirect to dashboard after download starts
-        setTimeout(() => {
-            const modalEl = document.getElementById('downloadReadyModal');
-            const modalInstance = bootstrap.Modal.getInstance(modalEl);
-            if (modalInstance) {
-                modalInstance.hide();
-            }
-            // Redirect to dashboard
-            window.location.href = '/';
-        }, 1000);
+        // Just show success message, don't redirect
+        downloadBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Download Started';
+        downloadBtn.disabled = true;
+        downloadBtn.classList.remove('btn-success');
+        downloadBtn.classList.add('btn-secondary');
     };
     
     // Show the modal
@@ -316,14 +285,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const checkboxes = document.querySelectorAll('.apply-checkbox');
     const selectAllBtn = document.getElementById('selectAllBtn');
     const deselectAllBtn = document.getElementById('deselectAllBtn');
-    const applyBtn = document.getElementById('applySelectedBtn');
-    const selectedCount = document.getElementById('selectedCount');
+    const applyBtnTop = document.getElementById('applySelectedBtnTop');
+    const applyBtnBottom = document.getElementById('applySelectedBtnBottom');
+    const selectedCountTop = document.getElementById('selectedCountTop');
+    const selectedCountBottom = document.getElementById('selectedCountBottom');
     const form = document.getElementById('applySuggestionsForm');
 
     function updateSelectedCount() {
         const checkedCount = document.querySelectorAll('.apply-checkbox:checked').length;
-        selectedCount.textContent = `${checkedCount} standard${checkedCount !== 1 ? 's' : ''} selected`;
-        applyBtn.disabled = checkedCount === 0;
+        const countText = `${checkedCount} standard${checkedCount !== 1 ? 's' : ''} selected`;
+        selectedCountTop.textContent = countText;
+        selectedCountBottom.textContent = countText;
+        applyBtnTop.disabled = checkedCount === 0;
+        applyBtnBottom.disabled = checkedCount === 0;
     }
 
     // Select all missing standards
@@ -353,10 +327,14 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Disable button and show loading state
-        applyBtn.disabled = true;
-        const originalText = applyBtn.innerHTML;
-        applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        // Disable buttons and show loading state
+        applyBtnTop.disabled = true;
+        applyBtnBottom.disabled = true;
+        const originalTextTop = applyBtnTop.innerHTML;
+        const originalTextBottom = applyBtnBottom.innerHTML;
+        const loadingText = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        applyBtnTop.innerHTML = loadingText;
+        applyBtnBottom.innerHTML = loadingText;
         
         // Gather selected standards with their suggestions
         const selectedItems = [];
@@ -403,9 +381,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Show modal with download button instead of auto-download
                 showDownloadModal(data.download_url, data.filename, data.standards_applied);
                 
-                // Reset button
-                applyBtn.innerHTML = originalText;
-                applyBtn.disabled = false;
+                // Reset buttons
+                applyBtnTop.innerHTML = originalTextTop;
+                applyBtnBottom.innerHTML = originalTextBottom;
+                applyBtnTop.disabled = false;
+                applyBtnBottom.disabled = false;
             } else {
                 throw new Error('Invalid response from server');
             }
@@ -421,9 +401,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert(`❌ Error applying suggestions:\n\n${error.message}`);
             }
             
-            // Reset button
-            applyBtn.innerHTML = originalText;
-            applyBtn.disabled = false;
+            // Reset buttons
+            applyBtnTop.innerHTML = originalTextTop;
+            applyBtnBottom.innerHTML = originalTextBottom;
+            applyBtnTop.disabled = false;
+            applyBtnBottom.disabled = false;
         });
     });
 

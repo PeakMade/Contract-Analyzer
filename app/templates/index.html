@@ -453,6 +453,40 @@ function loadFieldChoices() {
         .catch(error => console.error('Error loading Business Terms choices:', error));
 }
 
+// Show success message with green background
+function showSuccessMessage(message) {
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = `
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+        min-width: 500px;
+        max-width: 600px;
+        padding: 20px 50px 20px 20px;
+        font-size: 18px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        border: 2px solid #198754;
+        border-radius: 8px;
+    `;
+    alertDiv.setAttribute('role', 'alert');
+    alertDiv.innerHTML = `
+        <strong><i class="fas fa-check-circle me-2"></i>${message}</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);"></button>
+    `;
+    
+    // Add to page
+    document.body.appendChild(alertDiv);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        alertDiv.classList.remove('show');
+        setTimeout(() => alertDiv.remove(), 150);
+    }, 5000);
+}
+
 function loadDashboardData() {
     // Load field choices first if not already loaded
     if (riskAssigneeChoices.length === 0 || statusChoices.length === 0 || businessTermsChoices.length === 0) {
@@ -838,7 +872,8 @@ function uploadCompletedDocument(contractId, contractName) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(`Success! Completed document uploaded to SharePoint ContractFiles list.\n\nFile: ${data.file_name}`);
+            // Show success message with green background
+            showSuccessMessage('Completed Document Uploaded Successfully');
             fileInput.value = '';
             
             // Update status to "Completed" after successful upload
