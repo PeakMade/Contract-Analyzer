@@ -10,6 +10,7 @@ from app.services.text_extractor import extract_text
 from app.services.sp_preferred_standards import get_preferred_standards, get_preferred_standards_dict
 from app.services.analysis_orchestrator import analyze_contract as run_analysis
 from app.cache import analysis_cache
+from app.services.activity_logger import logger as activity_logger
 
 print("\n=== DEBUG APP INITIALIZATION ===")
 
@@ -543,7 +544,9 @@ def analyze_contract_route(contract_id):
         # First get the contract to obtain the SharePoint list item ID
         print(f"Updating status to 'In progress' for contract {contract_id}...")
         contract = sharepoint_service.get_contract_by_id(contract_id)
+        contract_name = 'Unknown'
         if contract and 'id' in contract:
+            contract_name = contract.get('name', contract_id)
             status_updated = sharepoint_service.update_contract_field(contract['id'], 'Status', 'In progress')
             if status_updated:
                 print(f"✓ Status updated to 'In progress'")
@@ -551,6 +554,10 @@ def analyze_contract_route(contract_id):
                 print(f"⚠ Failed to update status (non-critical)")
         else:
             print(f"⚠ Could not retrieve contract ID for status update (non-critical)")
+        
+        # Log successful analysis to SharePoint
+        print(f"Logging successful analysis to SharePoint...")
+        activity_logger.log_analysis_success(contract_name)
         
         # Clean up temporary file
         if temp_file_path and Path(temp_file_path).exists():
@@ -560,6 +567,9 @@ def analyze_contract_route(contract_id):
         return redirect(url_for('apply_suggestions_new', contract_id=contract_id))
         
     except PermissionError as e:
+        # Log failure
+        activity_logger.log_analysis_failure(contract_id)
+        
         if "SESSION_EXPIRED" in str(e):
             flash('Session expired — please sign in again.', 'warning')
             return redirect(url_for('auth.login'))
@@ -571,6 +581,9 @@ def analyze_contract_route(contract_id):
             return redirect(url_for('contract_standards', contract_id=contract_id))
             
     except FileNotFoundError as e:
+        # Log failure
+        activity_logger.log_analysis_failure(contract_id)
+        
         print(f"File not found in analyze_contract: {str(e)}")
         import traceback
         traceback.print_exc()
@@ -578,6 +591,9 @@ def analyze_contract_route(contract_id):
         return redirect(url_for('contract_standards', contract_id=contract_id))
         
     except RuntimeError as e:
+        # Log failure
+        activity_logger.log_analysis_failure(contract_id)
+        
         print(f"Runtime error in analyze_contract: {str(e)}")
         import traceback
         traceback.print_exc()
@@ -585,6 +601,9 @@ def analyze_contract_route(contract_id):
         return redirect(url_for('contract_standards', contract_id=contract_id))
         
     except Exception as e:
+        # Log failure
+        activity_logger.log_analysis_failure(contract_id)
+        
         print(f"Unexpected error in analyze_contract: {str(e)}")
         import traceback
         traceback.print_exc()
