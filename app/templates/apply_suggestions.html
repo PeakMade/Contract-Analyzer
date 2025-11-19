@@ -39,7 +39,7 @@
                 {{ summary|rejectattr('present', 'equalto', true)|list|length }} Missing
             </span>
         </div>
-        <button type="submit" form="applySuggestionsForm" id="applySelectedBtnTop" class="btn btn-success btn-lg" disabled>
+        <button type="submit" form="applySuggestionsForm" id="applySelectedBtnTop" class="btn btn-lg" style="background: #28a745; color: white; border: none;" disabled>
             <i class="bi bi-check-square"></i> Apply Selected
         </button>
     </div>
@@ -225,7 +225,7 @@
             </div>
             <div class="modal-footer justify-content-center">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-success" id="downloadModalBtn">
+                <button type="button" id="downloadModalBtn" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 500;">
                     <i class="bi bi-download me-2"></i>Download Document
                 </button>
             </div>
@@ -248,37 +248,27 @@ function showDownloadModal(downloadPath, filename, standardsApplied) {
     // Relative path works reliably with Azure proxy (same-origin, no mixed content issues)
     downloadBtn.onclick = function() {
         console.log('[Download] Starting download:', downloadPath);
-        downloadBtn.disabled = true;
-        downloadBtn.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm me-2"></i>Downloading...';
-        downloadBtn.classList.remove('btn-success');
-        downloadBtn.classList.add('btn-secondary');
         
         // Create hidden iframe for download with RELATIVE path (Azure proxy compatible)
+        // The iframe initiates the download immediately and persists even after redirect
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         iframe.src = downloadPath;  // Relative path: /contracts/ABC/download_edited?exp=...&sig=...
         document.body.appendChild(iframe);
         
-        // Show success after a short delay (download has started)
-        setTimeout(function() {
-            console.log('[Download] Download initiated successfully');
-            downloadBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Download Started';
-            
-            // Remove iframe after download starts
-            setTimeout(function() {
-                if (document.body.contains(iframe)) {
-                    document.body.removeChild(iframe);
-                }
-                console.log('[Download] Cleanup complete');
-            }, 2000);
-            
-            // Wait additional time to ensure download has fully started before redirecting
-            // This prevents the redirect from interfering with the download
-            setTimeout(function() {
-                console.log('[Download] Redirecting to dashboard');
-                window.location.href = '/?tab=dashboard';
-            }, 3000);
-        }, 1000);
+        console.log('[Download] Download iframe created');
+        
+        // Close modal immediately
+        const modalEl = document.getElementById('downloadReadyModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        
+        // Redirect to dashboard immediately - download will continue in background
+        // Modern browsers preserve iframe downloads during same-origin navigation
+        console.log('[Download] Redirecting to dashboard');
+        window.location.href = '/?tab=dashboard';
     };
     
     // Show the modal
