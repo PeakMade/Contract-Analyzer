@@ -3,9 +3,15 @@
 {% block title %}Apply Suggestions - {{ contract_name }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4" style="position: relative;">
+    <!-- Return to Dashboard Button (positioned next to user button) -->
+    <a href="{{ url_for('index') }}?tab=dashboard"
+      style="position: absolute; top: -24px; right: 200px; z-index: 999; background: #6c757d; color: white; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #6c757d; display: flex; align-items: center; height: fit-content;">
+      Return to Dashboard
+    </a>
+
     <!-- Header Section -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="mb-4">
         <div>
             <h2>Contract Analysis Results</h2>
             <p class="text-muted mb-0">
@@ -16,44 +22,32 @@
                 {% endif %}
             </p>
         </div>
-        <div>
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Dashboard
-            </a>
-        </div>
     </div>
 
-    <!-- Summary Banner -->
+    <!-- Summary Banner with Apply Button -->
     {% if summary %}
-    <div class="alert alert-info d-flex justify-content-between align-items-center">
+    <div class="d-flex justify-content-between align-items-center mb-3" style="background: #d1ecf1; padding: 12px 20px; border-radius: 6px; border: 1px solid #bee5eb;">
         <div>
-            <strong>Analysis Summary:</strong> 
-            {{ summary|selectattr('present', 'equalto', true)|list|length }} of {{ summary|length }} standards found
-        </div>
-        <div>
-            <span class="badge bg-success me-2">
+            <strong style="color: #0c5460;">Analysis Summary:</strong>
+            <span style="color: #0c5460;">
+                {{ summary|selectattr('present', 'equalto', true)|list|length }} of {{ summary|length }} standards found
+            </span>
+            <span class="badge bg-success ms-3">
                 {{ summary|selectattr('present', 'equalto', true)|list|length }} Found
             </span>
-            <span class="badge bg-warning">
+            <span class="badge bg-warning ms-2">
                 {{ summary|rejectattr('present', 'equalto', true)|list|length }} Missing
             </span>
         </div>
+        <button type="submit" form="applySuggestionsForm" id="applySelectedBtnTop" class="btn btn-success btn-lg" disabled>
+            <i class="bi bi-check-square"></i> Apply Selected
+        </button>
     </div>
     {% endif %}
 
     <!-- Analysis Results Table -->
     {% if summary %}
     <form id="applySuggestionsForm" method="POST" action="{{ url_for('apply_suggestions_action', contract_id=contract_id) }}">
-        
-        <!-- Top Apply Button -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <span id="selectedCountTop" class="text-muted">0 standards selected</span>
-            </div>
-            <button type="submit" id="applySelectedBtnTop" class="btn btn-success btn-lg" disabled>
-                <i class="bi bi-check-square"></i> Apply Selected
-            </button>
-        </div>
         
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-primary text-white">
@@ -70,7 +64,7 @@
                 </div>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                <div class="table-responsive" style="max-height: calc(100vh - 300px); overflow-y: auto;">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
                             <tr>
@@ -169,15 +163,6 @@
             </div>
         </div>
 
-        <!-- Bottom Apply Button -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <span id="selectedCountBottom" class="text-muted">0 standards selected</span>
-            </div>
-            <button type="submit" id="applySelectedBtnBottom" class="btn btn-success btn-lg" disabled>
-                <i class="bi bi-check-square"></i> Apply Selected
-            </button>
-        </div>
     </form>
     {% else %}
     <div class="alert alert-warning">
@@ -299,18 +284,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAllBtn = document.getElementById('selectAllBtn');
     const deselectAllBtn = document.getElementById('deselectAllBtn');
     const applyBtnTop = document.getElementById('applySelectedBtnTop');
-    const applyBtnBottom = document.getElementById('applySelectedBtnBottom');
-    const selectedCountTop = document.getElementById('selectedCountTop');
-    const selectedCountBottom = document.getElementById('selectedCountBottom');
     const form = document.getElementById('applySuggestionsForm');
 
     function updateSelectedCount() {
         const checkedCount = document.querySelectorAll('.apply-checkbox:checked').length;
-        const countText = `${checkedCount} standard${checkedCount !== 1 ? 's' : ''} selected`;
-        selectedCountTop.textContent = countText;
-        selectedCountBottom.textContent = countText;
         applyBtnTop.disabled = checkedCount === 0;
-        applyBtnBottom.disabled = checkedCount === 0;
     }
 
     // Select all missing standards
@@ -340,14 +318,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Disable buttons and show loading state
+        // Disable button and show loading state
         applyBtnTop.disabled = true;
-        applyBtnBottom.disabled = true;
         const originalTextTop = applyBtnTop.innerHTML;
-        const originalTextBottom = applyBtnBottom.innerHTML;
         const loadingText = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
         applyBtnTop.innerHTML = loadingText;
-        applyBtnBottom.innerHTML = loadingText;
         
         // Gather selected standards with their suggestions
         const selectedItems = [];
@@ -395,15 +370,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Show modal with download button (using relative path)
                 showDownloadModal(data.download_path, data.filename, data.standards_applied);
                 
-                // Update buttons to show completion (keep disabled to prevent double-click)
+                // Update button to show completion (keep disabled to prevent double-click)
                 applyBtnTop.innerHTML = '<i class="bi bi-check-circle me-2"></i>Applied Successfully';
-                applyBtnBottom.innerHTML = '<i class="bi bi-check-circle me-2"></i>Applied Successfully';
                 applyBtnTop.disabled = true;
-                applyBtnBottom.disabled = true;
                 applyBtnTop.classList.remove('btn-success');
                 applyBtnTop.classList.add('btn-secondary');
-                applyBtnBottom.classList.remove('btn-success');
-                applyBtnBottom.classList.add('btn-secondary');
             } else {
                 throw new Error('Invalid response from server');
             }
@@ -419,11 +390,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert(`❌ Error applying suggestions:\n\n${error.message}`);
             }
             
-            // Reset buttons
+            // Reset button
             applyBtnTop.innerHTML = originalTextTop;
-            applyBtnBottom.innerHTML = originalTextBottom;
             applyBtnTop.disabled = false;
-            applyBtnBottom.disabled = false;
         });
     });
 

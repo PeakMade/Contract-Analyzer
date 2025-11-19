@@ -3,12 +3,12 @@
 
 {% block content %}
 <div class="card contract-portal">
-  <div style="position: relative;">
-    <h1 style="text-align:center; color: #495057; margin-bottom:15px; font-size:2rem; letter-spacing:1px;">
+  <div style="position: relative; margin-bottom: 10px;">
+    <h1 style="text-align:center; color: #495057; margin-bottom:0; font-size:1.5rem; letter-spacing:1px;">
       {{ contract_name }}
     </h1>
-    <a href="{{ url_for('index') }}"
-      style="position: absolute; top: 0; right: 0; background: #6c757d; color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: 500;">
+    <a href="{{ url_for('index') }}?tab=dashboard"
+      style="position: absolute; top: 0; right: 200px; z-index: 999; background: #6c757d; color: white; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #6c757d; display: flex; align-items: center; height: fit-content;">
       Return to Dashboard
     </a>
   </div>
@@ -16,9 +16,9 @@
   <!-- Flash Messages Banner -->
   {% with messages = get_flashed_messages(with_categories=True) %}
     {% if messages %}
-      <div style="margin: 20px 0;">
+      <div style="margin: 10px 0;">
         {% for category, message in messages %}
-          <div class="alert alert-{{ category }}" style="padding: 12px 20px; margin-bottom: 10px; border-radius: 6px; 
+          <div class="alert alert-{{ category }}" style="padding: 8px 15px; margin-bottom: 8px; border-radius: 6px; 
                {% if category == 'success' %}background: #d4edda; color: #155724; border: 1px solid #c3e6cb;
                {% elif category == 'error' %}background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;
                {% elif category == 'warning' %}background: #fff3cd; color: #856404; border: 1px solid #ffeaa7;
@@ -32,10 +32,10 @@
 
   {% if analysis_completed and summary %}
   <!-- Analysis Results Section -->
-  <div class="analysis-results" style="margin: 30px 0;">
+  <div class="analysis-results" style="margin: 10px 0;">
     <!-- Summary Counts Banner -->
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-      <h3 style="margin: 0 0 10px 0; font-weight: 600;">Analysis Complete</h3>
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+      <h3 style="margin: 0 0 8px 0; font-weight: 600; font-size: 1.1rem;">Analysis Complete</h3>
       <div style="display: flex; gap: 30px; font-size: 1.1rem;">
         {% set present_count = summary | selectattr('present', 'equalto', true) | list | length %}
         {% set missing_count = summary | rejectattr('present', 'equalto', true) | list | length %}
@@ -55,7 +55,7 @@
 
     <!-- Results Table -->
     <form method="POST" action="{{ url_for('apply_suggestions_action', contract_id=contract_id) }}" id="applySuggestionsForm">
-      <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+      <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
         <div>
           <button type="button" id="applyAllBtn" class="btn-action" 
                   style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 500; cursor: pointer; margin-right: 10px;">
@@ -74,18 +74,18 @@
         <table style="width: 100%; border-collapse: collapse; background: white;">
           <thead>
             <tr style="background: linear-gradient(135deg, #495057 0%, #343a40 100%); color: white;">
-              <th style="padding: 15px; text-align: center; font-weight: 600; width: 60px;">Apply</th>
-              <th style="padding: 15px; text-align: left; font-weight: 600; width: 20%;">Standard</th>
-              <th style="padding: 15px; text-align: center; font-weight: 600; width: 10%;">Present</th>
-              <th style="padding: 15px; text-align: left; font-weight: 600; width: 30%;">Excerpt / Location</th>
-              <th style="padding: 15px; text-align: left; font-weight: 600; width: 40%;">Suggestion</th>
+              <th style="padding: 8px; text-align: center; font-weight: 600; width: 60px; font-size: 0.9rem;">Apply</th>
+              <th style="padding: 8px; text-align: left; font-weight: 600; width: 20%; font-size: 0.9rem;">Standard</th>
+              <th style="padding: 8px; text-align: center; font-weight: 600; width: 10%; font-size: 0.9rem;">Present</th>
+              <th style="padding: 8px; text-align: left; font-weight: 600; width: 30%; font-size: 0.9rem;">Excerpt / Location</th>
+              <th style="padding: 8px; text-align: left; font-weight: 600; width: 40%; font-size: 0.9rem;">Suggestion</th>
             </tr>
           </thead>
           <tbody>
             {% for item in summary %}
             <tr style="border-bottom: 1px solid #dee2e6; {% if not item.present %}background: #fff3cd;{% endif %}">
               <!-- Apply Checkbox -->
-              <td style="padding: 15px; text-align: center;">
+              <td style="padding: 10px; text-align: center;">
                 {% if not item.present %}
                   <input type="checkbox" name="apply_standards" value="{{ item.standard }}" class="apply-checkbox"
                          style="transform: scale(1.3); cursor: pointer;">
@@ -95,17 +95,17 @@
               </td>
 
               <!-- Standard Name -->
-              <td style="padding: 15px;">
-                <strong style="color: #495057;">{{ item.standard }}</strong>
+              <td style="padding: 10px;">
+                <strong style="color: #495057; font-size: 0.9rem;">{{ item.standard }}</strong>
                 {% if item.source == 'sharepoint' %}
-                  <br><small style="color: #28a745; font-weight: 600;"><i class="bi bi-check-circle"></i> Preferred Clause</small>
+                  <br><small style="color: #28a745; font-weight: 600; font-size: 0.75rem;"><i class="bi bi-check-circle"></i> Preferred Clause</small>
                 {% elif item.source == 'ai' %}
-                  <br><small style="color: #6c757d;"><i class="bi bi-robot"></i> Custom Standard</small>
+                  <br><small style="color: #6c757d; font-size: 0.75rem;"><i class="bi bi-robot"></i> Custom Standard</small>
                 {% endif %}
               </td>
 
               <!-- Present Status -->
-              <td style="padding: 15px; text-align: center;">
+              <td style="padding: 10px; text-align: center;">
                 {% if item.present %}
                   <span style="background: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
                     ✓ Yes
@@ -118,7 +118,7 @@
               </td>
 
               <!-- Excerpt / Location -->
-              <td style="padding: 15px; font-size: 0.9rem;">
+              <td style="padding: 10px; font-size: 0.85rem;">
                 {% if item.present %}
                   {% if item.excerpt and item.excerpt != 'N/A' %}
                     <div style="margin-bottom: 8px;">
@@ -137,7 +137,7 @@
               </td>
 
               <!-- Suggestion -->
-              <td style="padding: 15px; font-size: 0.9rem;">
+              <td style="padding: 10px; font-size: 0.85rem;">
                 {% if item.suggestion and item.suggestion != 'N/A' %}
                   <div style="color: #495057; line-height: 1.5;">
                     {{ item.suggestion[:200] }}{% if item.suggestion|length > 200 %}...{% endif %}
@@ -163,11 +163,11 @@
   {% else %}
   <!-- Standards selection form (shown when analysis not completed) -->
   <div class="analysis-prep">
-    <form method="post" action="{{ url_for('analyze_contract', contract_id=contract_id) }}" style="margin: 20px 0;">
+    <form method="post" action="{{ url_for('analyze_contract', contract_id=contract_id) }}" style="margin: 10px 0;">
       
       <!-- Default Standards Selection -->
-      <div class="standards-selection" style="margin: 30px 0;">
-        <h3 style="color: #495057; margin-bottom: 15px; font-weight: 600;">
+      <div class="standards-selection" style="margin: 10px 0;">
+        <h3 style="color: #495057; margin-bottom: 10px; font-weight: 600; font-size: 1.1rem;">
           Default Standards
           <button type="button" onclick="selectAllStandards()" class="select-all-btn-immediate"
             style="margin-left: 15px !important; padding: 5px 12px !important; background: var(--peakmade-magenta) !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 0.8rem !important; cursor: pointer !important; font-weight: 600 !important; text-transform: uppercase !important;">
@@ -180,19 +180,19 @@
         </h3>
 
         <!-- Main container with standards grid and custom standards side by side -->
-        <div style="display: flex; gap: 30px; align-items: flex-start;" class="standards-layout-container">
+        <div style="display: flex; gap: 20px; align-items: flex-start;" class="standards-layout-container">
 
           <!-- Left side: Standards Grid (4 columns x 5 rows) -->
           <div class="standards-container"
-            style="flex: 2; border: 2px solid #e9ecef; border-radius: 12px; padding: 20px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            style="flex: 2; border: 2px solid #e9ecef; border-radius: 8px; padding: 12px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
             <div class="standards-grid"
-              style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+              style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
               {% for item in preferred_standards %}
               <label
-                style="display: flex; align-items: center; justify-content: flex-start; padding: 12px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 50px;">
+                style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
                 <input type="checkbox" name="standards" value="{{ item.standard }}" checked
-                  style="margin-right: 10px; transform: scale(1.1);">
-                <span style="font-weight: 500; color: #495057; font-size: 0.9rem;">{{ item.standard }}</span>
+                  style="margin-right: 8px; transform: scale(1.1);">
+                <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">{{ item.standard }}</span>
               </label>
               {% endfor %}
             </div>
@@ -200,19 +200,19 @@
 
           <!-- Right side: Custom Standards Section -->
           <div class="custom-standards-section"
-            style="flex: 1; min-width: 280px; border: 2px solid #e9ecef; border-radius: 12px; padding: 20px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            style="flex: 1; min-width: 280px; border: 2px solid #e9ecef; border-radius: 8px; padding: 12px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
             <h4
-              style="color: #495057; margin-bottom: 15px; font-weight: 600; font-size: 1.1rem; text-align: center; margin-top: 0;">
+              style="color: #495057; margin-bottom: 10px; font-weight: 600; font-size: 1rem; text-align: center; margin-top: 0;">
               Add Custom Standards</h4>
 
             <!-- Custom standards input -->
             <input type="text" id="custom-standard-input" placeholder="Enter a custom standard..."
-              style="width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; font-family: inherit; box-sizing: border-box; background: white;"
+              style="width: 100%; padding: 10px; margin-bottom: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.85rem; font-family: inherit; box-sizing: border-box; background: white;"
               onfocus="this.style.borderColor='#495057'" onblur="this.style.borderColor='#e0e0e0'">
 
             <!-- Add Standard button -->
             <button type="button" id="add-custom-standard"
-              style="width: 140px; background: #495057; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: 500; cursor: pointer; font-size: 0.8rem; box-sizing: border-box; transition: all 0.2s ease;">
+              style="width: 130px; background: #495057; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-weight: 500; cursor: pointer; font-size: 0.8rem; box-sizing: border-box; transition: all 0.2s ease;">
               Add Standard
             </button>
           </div>
@@ -221,10 +221,10 @@
       </div>
 
       <!-- Centered Run AI Analysis Button -->
-      <div style="margin: 40px 0; text-align: center;">
-        <button type="submit" class="btn-primary" id="analyze-button"
-          style="display: inline-block; font-size: 0.8rem; padding: 6px 12px; background: var(--peakmade-magenta); border: none; color: white; border-radius: 4px; font-weight: 500; cursor: pointer;">
-          Run AI Analysis
+      <div style="margin: 20px 0 10px 0; text-align: center;">
+        <button type="submit" id="analyze-button"
+          style="display: inline-block; background: linear-gradient(135deg, #6c757d, #545b62); border: none; font-weight: 600; padding: 12px 40px; color: white; border-radius: 4px; cursor: pointer; font-size: 1rem;">
+          <i class="fas fa-brain" style="margin-right: 8px;"></i>RUN AI ANALYSIS
         </button>
       </div>
 

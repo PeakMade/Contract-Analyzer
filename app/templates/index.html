@@ -59,7 +59,7 @@
                             
                             <!-- Business Terms Section -->
                             <div class="col-md-8">
-                                <div class="border rounded p-3" style="border-color: #17a2b8 !important;">
+                                <div class="border rounded p-3 business-terms-container">
                                     <div class="row mb-3">
                                         <div class="col-md-6">
                                             <label for="businessApproverEmail" class="form-label">Business Approver Email <span class="text-danger">*</span></label>
@@ -158,8 +158,28 @@
 
 {% block extra_css %}
 <style>
+    /* Form input styling - darker borders for better visibility */
+    .form-control,
+    .form-select,
+    input[type="text"],
+    input[type="email"],
+    input[type="date"],
+    textarea {
+        border: 1px solid #495057 !important;
+    }
+    
+    .form-control:focus,
+    .form-select:focus,
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    input[type="date"]:focus,
+    textarea:focus {
+        border-color: #007bff !important;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+    }
+    
     .file-upload-area {
-        border: 2px dashed #ddd;
+        border: 2px dashed #495057 !important;
         border-radius: 8px;
         background-color: #f8f9fa;
         cursor: pointer;
@@ -172,13 +192,35 @@
     }
     
     .file-upload-area:hover {
-        border-color: #007bff;
+        border-color: #007bff !important;
         background-color: #e3f2fd;
     }
     
     .file-upload-area.dragover {
-        border-color: #28a745;
+        border-color: #28a745 !important;
         background-color: #d4edda;
+    }
+    
+    /* Business Terms container - darker border */
+    .business-terms-container {
+        border: 2px solid #495057 !important;
+    }
+    
+    /* Checkbox styling - darker and more visible */
+    .form-check-input {
+        border: 2px solid #495057 !important;
+        width: 1.25em;
+        height: 1.25em;
+    }
+    
+    .form-check-input:checked {
+        background-color: #007bff !important;
+        border-color: #007bff !important;
+    }
+    
+    .form-check-input:focus {
+        border-color: #007bff !important;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
     }
     
     .dashboard-card {
@@ -285,6 +327,20 @@
 <script>
 // File upload functionality
 document.addEventListener('DOMContentLoaded', function() {
+    // Check if URL has ?tab=dashboard parameter and switch to that tab
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('tab') === 'dashboard') {
+        const dashboardTab = document.getElementById('dashboard-tab');
+        if (dashboardTab) {
+            // Trigger the tab switch
+            const tabTrigger = new bootstrap.Tab(dashboardTab);
+            tabTrigger.show();
+            
+            // Load dashboard data automatically when switching to dashboard tab
+            loadDashboardData();
+        }
+    }
+    
     const fileInput = document.getElementById('contractFile');
     const fileNameDiv = document.getElementById('fileName');
     const uploadArea = document.querySelector('.file-upload-area');
@@ -401,13 +457,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Set default date to today and restrict to current date and forward
+    // Function to add business days (weekdays only: Mon-Fri)
+    function addBusinessDays(date, days) {
+        let result = new Date(date);
+        let addedDays = 0;
+        
+        while (addedDays < days) {
+            result.setDate(result.getDate() + 1);
+            // Skip weekends (0 = Sunday, 6 = Saturday)
+            const dayOfWeek = result.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                addedDays++;
+            }
+        }
+        return result;
+    }
+    
+    // Set default date to 10 business days from today and restrict to current date and forward
     const dateField = document.getElementById('dateRequested');
     if (dateField) {
-        const today = new Date().toISOString().split('T')[0];
-        dateField.min = today; // Restrict to current date and forward
+        const today = new Date();
+        const todayString = today.toISOString().split('T')[0];
+        dateField.min = todayString; // Restrict to current date and forward
+        
         if (!dateField.value) {
-            dateField.value = today; // Set default to today
+            // Calculate 10 business days from today
+            const defaultDate = addBusinessDays(today, 10);
+            dateField.value = defaultDate.toISOString().split('T')[0];
         }
     }
 });
@@ -684,8 +760,8 @@ function updateContractsTable(contracts) {
                 <td style="border-color: #dee2e6;">${contractName}</td>
                 <td style="border-color: #dee2e6;">${contract.submitter_name}</td>
                 <td style="border-color: #dee2e6;"><small class="text-muted">${contract.business_approver_email}</small></td>
-                <td style="border-color: #dee2e6;">${contract.date_submitted}</td>
-                <td style="border-color: #dee2e6;">${contract.date_requested}</td>
+                <td style="border-color: #dee2e6; white-space: nowrap;"><small style="font-size: 0.85rem;">${contract.date_submitted}</small></td>
+                <td style="border-color: #dee2e6; white-space: nowrap;"><small style="font-size: 0.85rem;">${contract.date_requested}</small></td>
                 <td style="border-color: #dee2e6;">
                     ${buildStatusDropdown(contract.status, contract.id)}
                 </td>

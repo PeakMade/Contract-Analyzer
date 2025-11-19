@@ -158,7 +158,7 @@ def submit_contract():
                 'message': f'Contract submitted successfully! Contract ID: {upload_result["contract_id"]}',
                 'file_url': upload_result['file_url'],
                 'contract_id': upload_result['contract_id'],
-                'redirect_url': url_for('index')
+                'redirect_url': url_for('index') + '?tab=dashboard'
             })
         else:
             return jsonify({
@@ -557,7 +557,6 @@ def analyze_contract_route(contract_id):
             Path(temp_file_path).unlink()
             print(f"Cleaned up temporary file: {temp_file_path}")
         
-        flash('✅ AI analysis completed successfully!', 'success')
         return redirect(url_for('apply_suggestions_new', contract_id=contract_id))
         
     except PermissionError as e:
