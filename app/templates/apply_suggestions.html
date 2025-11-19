@@ -271,6 +271,13 @@ function showDownloadModal(downloadPath, filename, standardsApplied) {
                 }
                 console.log('[Download] Cleanup complete');
             }, 2000);
+            
+            // Wait additional time to ensure download has fully started before redirecting
+            // This prevents the redirect from interfering with the download
+            setTimeout(function() {
+                console.log('[Download] Redirecting to dashboard');
+                window.location.href = '/?tab=dashboard';
+            }, 3000);
         }, 1000);
     };
     
