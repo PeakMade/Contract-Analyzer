@@ -24,14 +24,23 @@ INSTRUCTIONS:
 1. Search thoroughly for any clause related to "{standard}"
 2. If FOUND:
    - Extract the EXACT text (do not paraphrase)
-   - Identify the section/location (e.g., "Section 5.2", or null if unclear)
+   - Identify the location by looking for:
+     * Numbered section headings (e.g., "7. Term and Termination", "5.2 Payment Terms")
+     * Article numbers (e.g., "Article 5", "Article IV")
+     * The numbered heading that appears IMMEDIATELY BEFORE or ABOVE the clause text
+   - Report location as the section/article number and title (e.g., "Section 7 - Term and Termination")
+   - If the clause appears under a subsection, include both (e.g., "Section 7.2 - Termination without Cause")
    - Set "found": true, "suggestion": null
 3. If NOT FOUND:
    - Set "found": false, "excerpt": null, "location": null
    - Draft a complete, professionally worded suggested clause
    - Use proper legal terminology; avoid party names or specific dates
 
-CRITICAL: Extract exact text. Do not include the entire contract in your response.
+CRITICAL: 
+- Extract exact text from the contract
+- For location, look UPWARD from the clause text to find the nearest numbered heading
+- Do not include the entire contract in your response
+- Be precise with section numbering
 
 Return JSON: {{"found": boolean, "excerpt": string|null, "location": string|null, "suggestion": string|null}}
 

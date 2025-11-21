@@ -3,6 +3,7 @@ import msal
 import requests
 import logging
 import secrets
+from app.services.activity_logger import logger as activity_logger
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 logger = logging.getLogger(__name__)
@@ -169,6 +170,28 @@ def redirect_handler():
         print(f"DEBUG: Admin status for {email}: {admin_status}")
         
         print(f"DEBUG: Session after setting: {list(session.keys())}")
+        
+        # Log the user login to SharePoint
+        print(f"\n{'*'*60}")
+        print(f"DEBUG: ATTEMPTING TO LOG LOGIN TO SHAREPOINT")
+        print(f"DEBUG: Email: {email}")
+        print(f"DEBUG: Display Name: {user_info.get('displayName', email.split('@')[0])}")
+        print(f"{'*'*60}")
+        
+        try:
+            login_result = activity_logger.log_login(
+                user_email=email,
+                user_display_name=user_info.get('displayName', email.split('@')[0])
+            )
+            print(f"\n{'*'*60}")
+            print(f"DEBUG: LOGIN LOGGING RESULT: {login_result}")
+            print(f"{'*'*60}\n")
+        except Exception as e:
+            print(f"\n{'*'*60}")
+            print(f"DEBUG: EXCEPTION CALLING log_login(): {e}")
+            import traceback
+            traceback.print_exc()
+            print(f"{'*'*60}\n")
         
         logger.info(f"Authentication successful for {email}")
         flash(f"Welcome, {user_info.get('displayName', email)}!", 'success')

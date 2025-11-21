@@ -115,7 +115,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-file-contract me-2"></i>Contract Submissions</span>
-                    <button class="btn btn-sm btn-primary" onclick="loadDashboardData()">
+                    <button class="btn btn-sm" onclick="loadDashboardData()" style="background: white; color: black; border: 1px solid #dee2e6; font-weight: 600;">
                         <i class="fas fa-sync me-1"></i>Refresh
                     </button>
                 </div>
@@ -603,7 +603,7 @@ function buildStatusDropdown(currentStatus, contractId) {
         options += `<option value="${choice}" ${selected}>${choice}</option>`;
     });
     
-    return `<select class="form-select form-select-sm status-select" data-contract-id="${contractId}" data-field="Status" style="min-width: 120px;">${options}</select>`;
+    return `<select class="form-select form-select-sm status-select" data-contract-id="${contractId}" data-field="Status" style="min-width: 120px; font-size: 0.85rem;">${options}</select>`;
 }
 
 function buildRiskAssigneeDropdown(currentAssignee, contractId) {
@@ -612,7 +612,7 @@ function buildRiskAssigneeDropdown(currentAssignee, contractId) {
     
     // Non-admins see read-only text
     if (!isUserAdmin) {
-        return `<span class="text-muted">${currentAssignee || 'Not Assigned'}</span>`;
+        return `<span class="text-muted" style="font-size: 0.85rem;">${currentAssignee || 'Not Assigned'}</span>`;
     }
     
     let options = '<option value="">Not Assigned</option>';
@@ -621,7 +621,7 @@ function buildRiskAssigneeDropdown(currentAssignee, contractId) {
         options += `<option value="${choice}" ${selected}>${choice}</option>`;
     });
     
-    return `<select class="form-select form-select-sm risk-assignee-select" data-contract-id="${contractId}" data-field="RiskAssignee" style="min-width: 150px;">${options}</select>`;
+    return `<select class="form-select form-select-sm risk-assignee-select" data-contract-id="${contractId}" data-field="RiskAssignee" style="min-width: 150px; font-size: 0.85rem;">${options}</select>`;
 }
 
 function buildBusinessTermsDropdown(currentBusinessTerms, contractId) {
@@ -639,9 +639,9 @@ function buildBusinessTermsDropdown(currentBusinessTerms, contractId) {
     // Display current selection with each term on its own line
     let displayText;
     if (selectedTerms.length > 0) {
-        displayText = selectedTerms.map(term => `<div style="margin-bottom: 2px;">${term}</div>`).join('');
+        displayText = selectedTerms.map(term => `<div style="margin-bottom: 2px; font-size: 0.85rem;">${term}</div>`).join('');
     } else {
-        displayText = '<div>None selected</div>';
+        displayText = '<div style="font-size: 0.85rem;">None selected</div>';
     }
     
     return `
@@ -681,7 +681,7 @@ function buildEstimatedReviewCompletion(currentDate, contractId) {
                data-contract-id="${contractId}" 
                data-field="EstimatedReviewCompletion" 
                value="${inputValue}"
-               style="min-width: 140px; font-size: 0.85rem;"
+               style="width: 110px; font-size: 0.85rem;"
                onchange="updateDateField(this)">
     `;
 }
@@ -758,7 +758,7 @@ function updateContractsTable(contracts) {
         html += `
             <tr style="background: white; color: #333;">
                 <td style="border-color: #dee2e6;">${contractName}</td>
-                <td style="border-color: #dee2e6;">${contract.submitter_name}</td>
+                <td style="border-color: #dee2e6;"><small style="font-size: 0.85rem;">${contract.submitter_name}</small></td>
                 <td style="border-color: #dee2e6;"><small class="text-muted">${contract.business_approver_email}</small></td>
                 <td style="border-color: #dee2e6; white-space: nowrap;"><small style="font-size: 0.85rem;">${contract.date_submitted}</small></td>
                 <td style="border-color: #dee2e6; white-space: nowrap;"><small style="font-size: 0.85rem;">${contract.date_requested}</small></td>
@@ -774,7 +774,14 @@ function updateContractsTable(contracts) {
                 <td style="border-color: #dee2e6;">
                     ${buildBusinessTermsDropdown(contract.business_terms, contract.id)}
                 </td>
-                <td style="border-color: #dee2e6;"><small>${additionalNotes}</small></td>
+                <td style="border-color: #dee2e6; max-width: 150px;">
+                    <small>${additionalNotes.length > 50 ? additionalNotes.substring(0, 50) + '...' : additionalNotes}</small>
+                    ${additionalNotes.length > 50 ? 
+                        `<br><button class="btn btn-sm btn-outline-secondary mt-1 view-notes-btn" data-contract-name="${contract.name.replace(/"/g, '&quot;')}" data-notes="${additionalNotes.replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}" style="font-size: 0.7rem; padding: 2px 8px;">
+                            View More
+                        </button>` : ''
+                    }
+                </td>
                 <td style="border-color: #dee2e6;">
                     ${actionButtons}
                 </td>
@@ -1087,6 +1094,42 @@ function saveBusinessTerms(contractId) {
     });
 }
 
+// Show Additional Notes in a modal
+function showNotesModal(contractName, notes) {
+    // Create modal HTML
+    const modalHtml = `
+        <div class="modal fade" id="notesModal" tabindex="-1" aria-labelledby="notesModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="notesModalLabel">Additional Notes - ${contractName}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="white-space: pre-wrap; word-break: break-word; margin: 0;">${notes}</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('notesModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('notesModal'));
+    modal.show();
+}
+
 // Load dashboard data when switching to dashboard tab
 document.addEventListener('DOMContentLoaded', function() {
     const dashboardTab = document.getElementById('dashboard-tab');
@@ -1095,6 +1138,15 @@ document.addEventListener('DOMContentLoaded', function() {
             loadDashboardData();
         });
     }
+    
+    // Event delegation for "View More" buttons in Additional Notes
+    document.body.addEventListener('click', function(e) {
+        if (e.target.classList.contains('view-notes-btn')) {
+            const contractName = e.target.getAttribute('data-contract-name');
+            const notes = e.target.getAttribute('data-notes');
+            showNotesModal(contractName, notes);
+        }
+    });
 });
 </script>
 {% endblock %}

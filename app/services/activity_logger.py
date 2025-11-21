@@ -45,12 +45,12 @@ class ActivityLogger:
             traceback.print_exc()
             return None
     
-    def log_analysis(self, contract_name, status='Success', user_email=None, user_display_name=None):
+    def log_analysis(self, contract_name=None, status='Success', user_email=None, user_display_name=None):
         """
         Log a contract analysis activity to SharePoint
         
         Args:
-            contract_name: Name of the contract analyzed
+            contract_name: Name of the contract analyzed (optional for login-only logs)
             status: 'Success' or 'Fail'
             user_email: User's email (defaults to session user)
             user_display_name: User's display name (defaults to session user)
@@ -82,24 +82,29 @@ class ActivityLogger:
             # IMPORTANT: Must use INTERNAL field names from SharePoint, not display names
             # See check_log_list_fields.py output for mapping
             timestamp = datetime.utcnow().isoformat() + 'Z'
-            log_data = {
-                'fields': {
-                    'Title': contract_name,  # Title is the default required field
-                    'UserEmail': user_email,  # Internal name: UserEmail
-                    'UserDisplayName': user_display_name,  # Internal name: UserDisplayName
-                    'Contractname': contract_name,  # Internal name: Contractname (no space!)
-                    'TimeofAnalysis': timestamp,  # Internal name: TimeofAnalysis
-                    'AnalysisSuccessorFail': status  # Internal name: AnalysisSuccessorFail
-                }
+            
+            # Build fields dict conditionally
+            fields = {
+                'Title': contract_name or f"Login - {user_email}",  # Title is required
+                'UserEmail': user_email,
+                'UserDisplayName': user_display_name
             }
             
+            # Add analysis-specific fields only if contract_name is provided
+            if contract_name:
+                fields['Contractname'] = contract_name
+                fields['TimeofAnalysis'] = timestamp
+                fields['AnalysisSuccessorFail'] = status
+            
+            log_data = {'fields': fields}
+            
             print(f"[ActivityLogger] DEBUG: Log data prepared:")
-            print(f"[ActivityLogger]   - Title: {contract_name}")
+            print(f"[ActivityLogger]   - Title: {fields.get('Title')}")
             print(f"[ActivityLogger]   - UserEmail: {user_email}")
             print(f"[ActivityLogger]   - UserDisplayName: {user_display_name}")
-            print(f"[ActivityLogger]   - Contractname: {contract_name}")
-            print(f"[ActivityLogger]   - TimeofAnalysis: {timestamp}")
-            print(f"[ActivityLogger]   - AnalysisSuccessorFail: {status}")
+            print(f"[ActivityLogger]   - Contractname: {fields.get('Contractname', 'N/A')}")
+            print(f"[ActivityLogger]   - TimeofAnalysis: {fields.get('TimeofAnalysis', 'N/A')}")
+            print(f"[ActivityLogger]   - AnalysisSuccessorFail: {fields.get('AnalysisSuccessorFail', 'N/A')}")
             
             # Get authorization headers
             print(f"[ActivityLogger] DEBUG: Getting authorization headers...")
@@ -159,6 +164,106 @@ class ActivityLogger:
     def log_analysis_failure(self, contract_name, user_email=None, user_display_name=None):
         """Log when an analysis fails"""
         return self.log_analysis(contract_name, status='Fail', user_email=user_email, user_display_name=user_display_name)
+    
+    def log_login(self, user_email=None, user_display_name=None):
+        """
+        Log when a user logs into the application
+        
+        Args:
+            user_email: User's email (defaults to session user)
+            user_display_name: User's display name (defaults to session user)
+        
+        Returns:
+            bool: True if logged successfully, False otherwise
+        """
+        print(f"\n{'='*60}")
+        print(f"[ActivityLogger] LOGGING USER LOGIN - METHOD CALLED")
+        print(f"[ActivityLogger] Input params - email: {user_email}, display_name: {user_display_name}")
+        print(f"{'='*60}")
+        
+        try:
+            print(f"[ActivityLogger] STEP 1: Getting user info...")
+            # Get user info from session if not provided
+            if not user_email:
+                user = session.get('user', {})
+                user_email = user.get('email') or session.get('user_email', 'unknown@unknown.com')
+                print(f"[ActivityLogger] Extracted email from session: {user_email}")
+            
+            if not user_display_name:
+                user = session.get('user', {})
+                user_display_name = user.get('name') or session.get('user_name', 'Unknown User')
+                print(f"[ActivityLogger] Extracted display name from session: {user_display_name}")
+            
+            print(f"[ActivityLogger] STEP 2: Preparing log data...")
+            # Prepare the log entry with LoginTime
+            timestamp = datetime.utcnow().isoformat() + 'Z'
+            log_data = {
+                'fields': {
+                    'Title': f"Login - {user_email}",
+                    'UserEmail': user_email,
+                    'UserDisplayName': user_display_name,
+                    'LoginTime': timestamp
+                }
+            }
+            
+            print(f"[ActivityLogger] DEBUG: Login log data prepared:")
+            print(f"[ActivityLogger]   - Title: Login - {user_email}")
+            print(f"[ActivityLogger]   - UserEmail: {user_email}")
+            print(f"[ActivityLogger]   - UserDisplayName: {user_display_name}")
+            print(f"[ActivityLogger]   - LoginTime: {timestamp}")
+            print(f"[ActivityLogger] Full log_data JSON: {log_data}")
+            
+            print(f"[ActivityLogger] STEP 3: Getting authorization headers...")
+            # Get authorization headers
+            headers = self._get_headers()
+            if not headers:
+                print("[ActivityLogger] ✗✗✗ ERROR: Failed to get authorization headers")
+                print(f"{'='*60}\n")
+                return False
+            print(f"[ActivityLogger] ✓ Headers obtained successfully")
+            
+            print(f"[ActivityLogger] STEP 4: Getting site ID from environment...")
+            # Get site ID from environment variable (same as log_analysis method)
+            site_id = os.getenv('O365_SITE_ID')
+            print(f"[ActivityLogger] DEBUG: Site ID from env: {site_id}")
+            print(f"[ActivityLogger] DEBUG: Log List ID: {self.log_list_id}")
+            
+            if not site_id:
+                print("[ActivityLogger] ✗✗✗ ERROR: O365_SITE_ID not found in environment")
+                print(f"{'='*60}\n")
+                return False
+            print(f"[ActivityLogger] ✓ Site ID obtained: {site_id}")
+            
+            print(f"[ActivityLogger] STEP 5: Posting to SharePoint...")
+            # Post to SharePoint list
+            endpoint = f"https://graph.microsoft.com/v1.0/sites/{site_id}/lists/{self.log_list_id}/items"
+            print(f"[ActivityLogger] DEBUG: Posting to endpoint: {endpoint}")
+            print(f"[ActivityLogger] DEBUG: Log list ID: {self.log_list_id}")
+            
+            response = requests.post(endpoint, headers=headers, json=log_data)
+            
+            print(f"[ActivityLogger] STEP 6: Processing response...")
+            print(f"[ActivityLogger] Response status code: {response.status_code}")
+            
+            if response.status_code == 201:
+                print(f"[ActivityLogger] ✓✓✓ LOGIN LOGGED SUCCESSFULLY")
+                print(f"[ActivityLogger] Response body: {response.text[:500]}")
+                print(f"{'='*60}\n")
+                return True
+            else:
+                print(f"[ActivityLogger] ✗✗✗ FAILED TO LOG LOGIN")
+                print(f"[ActivityLogger] Status: {response.status_code}")
+                print(f"[ActivityLogger] Response: {response.text}")
+                print(f"{'='*60}\n")
+                return False
+                
+        except Exception as e:
+            print(f"[ActivityLogger] ✗✗✗ EXCEPTION LOGGING LOGIN: {e}")
+            print(f"[ActivityLogger] Exception type: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
+            print(f"{'='*60}\n")
+            return False
 
 
 # Create a singleton instance
