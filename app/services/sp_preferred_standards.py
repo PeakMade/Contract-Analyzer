@@ -70,6 +70,11 @@ def _fetch_preferred_standards_list(token: str, list_id: str) -> dict:
         timeout=(5, 30)
     )
     
+    # Check for token expiration (401 Unauthorized)
+    if response.status_code == 401:
+        logger.error("Token expired when fetching preferred standards - session invalid")
+        raise PermissionError("SESSION_EXPIRED: Token expired, user must log in again")
+    
     # Retry on 429/503
     if response.status_code in (429, 503):
         logger.warning(f"Received {response.status_code} from SharePoint, will retry")
@@ -139,6 +144,11 @@ def get_preferred_standards() -> list[dict]:
         print(f"DEBUG sp_preferred_standards: Returning {len(standards_list)} standards")
         return standards_list
         
+    except PermissionError as e:
+        # Token expired - DO NOT use fallback, force user to re-authenticate
+        logger.error(f"Token expired fetching preferred standards: {e}")
+        print(f"DEBUG sp_preferred_standards: PermissionError (token expired) - Re-raising to force login")
+        raise  # Re-raise to propagate to calling code
     except ValueError as e:
         logger.warning(f"Configuration error for preferred standards: {e}")
         print(f"DEBUG sp_preferred_standards: ValueError - {e}")

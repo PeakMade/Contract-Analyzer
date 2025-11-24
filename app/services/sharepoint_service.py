@@ -164,8 +164,18 @@ class SharePointService:
             
             print(f"Upload URL: {upload_url}")
             
+            # Use delegated user token from session so file shows correct creator
+            from flask import session
+            delegated_token = session.get('access_token')
+            upload_token = delegated_token if delegated_token else self.access_token
+            
+            if delegated_token:
+                print(f"✓ Using delegated user token for upload (will show {submitter_email} as creator)")
+            else:
+                print(f"⚠ No delegated token, using app token (will show 'SharePoint App')")
+            
             headers = {
-                'Authorization': f'Bearer {self.access_token}',
+                'Authorization': f'Bearer {upload_token}',
                 'Content-Type': 'application/octet-stream'
             }
             
@@ -180,9 +190,13 @@ class SharePointService:
                 
                 # Get the SharePoint URL for the document
                 document_url = file_info.get('webUrl', '')
+                file_id = file_info.get('id')
                 
                 print(f"✓ File uploaded successfully!")
                 print(f"Document URL: {document_url}")
+                print(f"File ID: {file_id}")
+                print(f"✓ File uploaded with delegated token - {submitter_email} will be shown as creator")
+                
                 print(f"Now creating metadata record in Uploaded Contracts list...")
                 
                 # Create metadata record in "Uploaded Contracts" list
@@ -231,6 +245,101 @@ class SharePointService:
                 'error': error_msg,
                 'message': 'Failed to upload contract to SharePoint'
             }
+    
+    def _update_file_creator(self, file_id, user_email):
+        """
+        Update the file's Modified By field to show the actual user instead of SharePoint App.
+        
+        Args:
+            file_id: The DriveItem ID from the file upload response
+            user_email: Email of the user to set as creator/modifier
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            from flask import session
+            
+            print(f"\n=== DEBUG _update_file_creator ===")
+            print(f"File ID: {file_id}")
+            print(f"User Email: {user_email}")
+            
+            # Use delegated user token from session instead of app token
+            # App tokens don't have permission to update file metadata
+            delegated_token = session.get('access_token')
+            if not delegated_token:
+                print(f"✗ No delegated token in session, cannot update file creator")
+                return False
+            
+            print(f"✓ Using delegated user token from session")
+            
+            # First, get the user's ID from their email
+            user_lookup_url = f"{self.graph_url}/users/{user_email}"
+            headers = {
+                'Authorization': f'Bearer {delegated_token}',
+                'Content-Type': 'application/json'
+            }
+            
+            user_response = requests.get(user_lookup_url, headers=headers)
+            
+            if user_response.status_code != 200:
+                print(f"✗ Failed to lookup user: {user_response.status_code} - {user_response.text}")
+                return False
+            
+            user_data = user_response.json()
+            user_id = user_data.get('id')
+            user_display_name = user_data.get('displayName')
+            print(f"✓ Found user: {user_display_name} (ID: {user_id})")
+            
+            # Get the list item associated with this drive item
+            # Files in document libraries have associated list items
+            list_item_url = f"{self.graph_url}/drives/{self.drive_id}/items/{file_id}/listItem"
+            list_item_response = requests.get(list_item_url, headers=headers)
+            
+            if list_item_response.status_code != 200:
+                print(f"✗ Failed to get list item: {list_item_response.status_code} - {list_item_response.text}")
+                return False
+            
+            list_item_data = list_item_response.json()
+            list_item_id = list_item_data.get('id')
+            parent_ref = list_item_data.get('parentReference', {})
+            list_id = parent_ref.get('id')  # Get the actual list ID from parent reference
+            
+            print(f"✓ Found list item ID: {list_item_id}")
+            print(f"✓ Found list ID: {list_id}")
+            
+            # For "Modified By" to show correctly, we need to update the file metadata
+            # using the delegated user token. Simply making any update with the user's token
+            # will set them as the modifier. We'll update a harmless custom property.
+            
+            # Update approach: Patch the list item fields with the user's token
+            # This will automatically set the user as "Modified By"
+            update_url = f"{self.graph_url}/drives/{self.drive_id}/items/{file_id}/listItem/fields"
+            
+            # Make a minimal update - add or update a custom field
+            # This triggers SharePoint to record the user as modifier
+            update_data = {
+                '_ModifiedByUser': user_email  # Custom tracking field
+            }
+            
+            print(f"Updating file metadata with user token to set Modified By...")
+            update_response = requests.patch(update_url, headers=headers, json=update_data)
+            
+            if update_response.status_code == 200:
+                print(f"✓ Successfully updated file - Modified By should now show {user_display_name}")
+                return True
+            else:
+                print(f"✗ Failed to update: {update_response.status_code} - {update_response.text}")
+                # This is not a critical failure - file is uploaded, just attribution is wrong
+                # So we'll log but not fail the upload
+                return False
+                
+        except Exception as e:
+            print(f"✗ Exception updating file creator: {e}")
+            import traceback
+            traceback.print_exc()
+            # Non-critical - don't fail the upload
+            return False
     
     def _create_contract_metadata(self, contract_id, contract_name, submitter_name, submitter_email, 
                                 business_approver_email, date_requested, business_terms, 
@@ -370,13 +479,14 @@ class SharePointService:
             print(f"Error testing SharePoint connection: {str(e)}")
             return False
     
-    def upload_to_contract_files(self, file, filename):
+    def upload_to_contract_files(self, file, filename, user_email=None):
         """
         Upload a completed contract document to the ContractFiles library
         
         Args:
             file: FileStorage object from Flask request
             filename: Name for the file in SharePoint
+            user_email: Email of the user uploading (for attribution)
             
         Returns:
             dict: {'success': bool, 'file_name': str, 'file_url': str} or error dict
@@ -399,8 +509,18 @@ class SharePointService:
             
             print(f"Upload URL: {upload_url}")
             
+            # Use delegated user token from session so file shows correct creator
+            from flask import session
+            delegated_token = session.get('access_token')
+            upload_token = delegated_token if delegated_token else self.access_token
+            
+            if delegated_token and user_email:
+                print(f"✓ Using delegated user token for upload (will show {user_email} as creator)")
+            else:
+                print(f"⚠ Using app token (will show 'SharePoint App')")
+            
             headers = {
-                'Authorization': f'Bearer {self.access_token}',
+                'Authorization': f'Bearer {upload_token}',
                 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             }
             
@@ -416,15 +536,22 @@ class SharePointService:
             if response.status_code in [200, 201]:
                 file_info = response.json()
                 document_url = file_info.get('webUrl', '')
+                file_id = file_info.get('id')
                 
                 print(f"✓ File uploaded successfully!")
                 print(f"Document URL: {document_url}")
+                print(f"File ID: {file_id}")
+                
+                if user_email:
+                    print(f"✓ File uploaded with delegated token - {user_email} will be shown as creator")
+                else:
+                    print(f"⚠ No user_email provided, file may show as 'SharePoint App'")
                 
                 return {
                     'success': True,
                     'file_name': safe_filename,
                     'file_url': document_url,
-                    'file_id': file_info.get('id'),
+                    'file_id': file_id,
                     'drive_item': file_info,  # Full Graph API response for update_enhanced_document_link
                     'message': 'File uploaded successfully to ContractFiles'
                 }

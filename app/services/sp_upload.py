@@ -37,11 +37,79 @@ def _get_bearer_token() -> str:
     return access_token
 
 
+def _update_file_creator(file_id: str, drive_id: str, user_email: str, site_id: str) -> bool:
+    """
+    Update the file's Modified By field to show the actual user.
+    
+    Args:
+        file_id: The DriveItem ID from the file upload response
+        drive_id: SharePoint drive ID  
+        user_email: Email of the user to set as creator/modifier
+        site_id: SharePoint site ID
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        print(f"\n=== DEBUG _update_file_creator (sp_upload) ===")
+        print(f"File ID: {file_id}")
+        print(f"User Email: {user_email}")
+        
+        token = _get_bearer_token()
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Get user ID from email
+        user_lookup_url = f"https://graph.microsoft.com/v1.0/users/{user_email}"
+        user_response = requests.get(user_lookup_url, headers=headers)
+        
+        if user_response.status_code != 200:
+            print(f"✗ Failed to lookup user: {user_response.status_code}")
+            return False
+        
+        user_data = user_response.json()
+        user_id = user_data.get('id')
+        print(f"✓ Found user ID: {user_id}")
+        
+        # Get list item for the file
+        list_item_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{file_id}/listItem"
+        list_item_response = requests.get(list_item_url, headers=headers)
+        
+        if list_item_response.status_code != 200:
+            print(f"✗ Failed to get list item: {list_item_response.status_code}")
+            return False
+        
+        list_item_data = list_item_response.json()
+        list_item_id = list_item_data.get('id')
+        print(f"✓ Found list item ID: {list_item_id}")
+        
+        # Update the Editor field
+        update_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/lists/{drive_id}/items/{list_item_id}/fields"
+        update_data = {'EditorLookupId': user_id}
+        
+        update_response = requests.patch(update_url, headers=headers, json=update_data)
+        
+        if update_response.status_code == 200:
+            print(f"✓ Successfully updated file creator")
+            return True
+        else:
+            print(f"✗ Failed to update: {update_response.status_code} - {update_response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"✗ Exception updating file creator: {e}")
+        return False
+
+
 def upload_file(
     drive_id: str,
     folder_path: str,
     filename: str,
-    content: bytes
+    content: bytes,
+    user_email: str = None,
+    site_id: str = None
 ) -> Dict:
     """
     Upload a file to SharePoint using delegated user token.
@@ -51,6 +119,8 @@ def upload_file(
         folder_path: Folder path within drive (e.g., "Contracts" or "" for root)
         filename: Name for the uploaded file
         content: File content as bytes
+        user_email: Email of user to attribute file to (optional)
+        site_id: SharePoint site ID (required if user_email provided)
     
     Returns:
         Dict with upload response containing 'id', 'name', 'webUrl', etc.
@@ -115,6 +185,15 @@ def upload_file(
             print(f"  File name: {result.get('name', filename)}")
             if 'webUrl' in result:
                 print(f"  Web URL: {result['webUrl'][:60]}...")
+            
+            # Update file creator if user_email and site_id provided
+            if user_email and site_id:
+                file_id = result.get('id')
+                print(f"\nUpdating file creator to: {user_email}")
+                _update_file_creator(file_id, drive_id, user_email, site_id)
+            elif user_email and not site_id:
+                print(f"⚠ Warning: user_email provided but site_id missing, cannot update creator")
+            
             print(f"{'='*60}\n")
             return result
         elif response.status_code == 401:

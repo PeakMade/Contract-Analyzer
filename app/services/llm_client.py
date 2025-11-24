@@ -18,31 +18,71 @@ client: Optional[OpenAI] = None
 # OpenAI prompt templates
 SYSTEM_PROMPT = "You are a legal contract analyst specializing in clause identification and drafting. Return ONLY valid JSON matching the required schema."
 
-USER_PROMPT_TEMPLATE = '''Analyze the contract for a "{standard}" clause.
+USER_PROMPT_TEMPLATE = '''You are given the full text of a contract and a standard name: {standard}.
 
-INSTRUCTIONS:
-1. Search thoroughly for any clause related to "{standard}"
-2. If FOUND:
-   - Extract the EXACT text (do not paraphrase)
-   - Identify the location by looking for:
-     * Numbered section headings (e.g., "7. Term and Termination", "5.2 Payment Terms")
-     * Article numbers (e.g., "Article 5", "Article IV")
-     * The numbered heading that appears IMMEDIATELY BEFORE or ABOVE the clause text
-   - Report location as the section/article number and title (e.g., "Section 7 - Term and Termination")
-   - If the clause appears under a subsection, include both (e.g., "Section 7.2 - Termination without Cause")
-   - Set "found": true, "suggestion": null
-3. If NOT FOUND:
-   - Set "found": false, "excerpt": null, "location": null
-   - Draft a complete, professionally worded suggested clause
-   - Use proper legal terminology; avoid party names or specific dates
+Your job is to:
+1. Find the MOST relevant clause in the contract that addresses the standard.
+2. Return the exact clause text word-for-word.
+3. Return the exact section/heading line FROM THE CONTRACT that is immediately above that clause.
+4. Do NOT infer or invent section numbers or names.
 
-CRITICAL: 
-- Extract exact text from the contract
-- For location, look UPWARD from the clause text to find the nearest numbered heading
-- Do not include the entire contract in your response
-- Be precise with section numbering
+HARD CONSTRAINTS (MUST FOLLOW):
+- You MUST only use information that literally appears in the contract text.
+- The "location" field MUST be copied from a single, contiguous line in the contract.
+- If the contract text does NOT contain "Section 4", "4.", "Article VII", etc., you MUST NOT output those labels.
+- Do NOT guess the section number based on counting.
+- Do NOT synthesize your own headings like "Confidentiality and Non-Compete section" if that exact text does not exist.
 
-Return JSON: {{"found": boolean, "excerpt": string|null, "location": string|null, "suggestion": string|null}}
+DETECTION ALGORITHM:
+1. Search the contract for clauses related to "{standard}".
+   - Prefer clauses where the heading line or clause text directly includes the standard term
+     or a close legal synonym (e.g., "Confidentiality", "Non-Disclosure" for a confidentiality standard).
+2. Once you find the best matching clause:
+   - Let CLAUSE_START be the start of that clause in the contract text.
+   - Scan UPWARDS from CLAUSE_START to find the NEAREST heading line above it.
+     A heading line is typically:
+       - A line that starts with a number or number pattern:
+         e.g., "4. Confidentiality & Non-Compete", "7.2 Limitation of Liability"
+       - OR a line starting with "Section", "Article", "Paragraph", or similar:
+         e.g., "Section 12: Confidentiality"
+       - OR a line in ALL CAPS or Title Case that clearly looks like a section heading.
+3. Copy that heading line EXACTLY as it appears, but STOP at the end of the heading.
+   - DO NOT include the first sentence of the clause text itself.
+   - The heading is usually SHORT (under 100 characters).
+   - Include ONLY the section number and title, NOT the clause content.
+
+CRITICAL RULES FOR LOCATION:
+- The "location" must be SHORT and concise - just the section number and title.
+- GOOD examples: "4. Confidentiality & Non-Compete", "Section 7: Indemnification", "Article V - Termination"
+- BAD examples: "4. Confidentiality & Non-Compete. The Partner may have access to..." (includes clause text)
+- The "location" value MUST be an exact substring from the contract text.
+- Keep punctuation, capitalization, and numbering exactly as written.
+- Do NOT convert numbers between formats (no 4 ↔ "four" ↔ "IV").
+- Do NOT rename "Section" to "Paragraph" or vice versa.
+- Stop at the first period AFTER the title, before clause content begins.
+- If you cannot confidently identify a heading line above the clause, set:
+  - "location": "Location unclear in document"
+
+WHEN NO CLAUSE EXISTS:
+- If you cannot find any clause that clearly addresses "{standard}":
+  - "found": false
+  - "excerpt": null
+  - "location": null
+  - Write a complete, professionally worded suggested clause for the standard in "suggestion".
+
+RESPONSE FORMAT (VALID JSON ONLY):
+{{
+  "found": boolean,
+  "excerpt": string | null,      // exact clause text from the contract or null
+  "location": string | null,     // exact heading line from the contract or "Location unclear in document"
+  "suggestion": string | null    // null if found=true; if found=false provide a full clause here
+}}
+
+BEFORE RESPONDING, VERIFY:
+- The "excerpt" is copied word-for-word from the contract.
+- The "location" is copied word-for-word from a single line in the contract and exists in the contract text.
+- You did not invent or infer any section numbers or headings.
+- The final output is valid JSON and nothing else.
 
 CONTRACT TEXT:
 {contract_text}'''
@@ -107,6 +147,25 @@ def _validate_json_response(response_text: str) -> dict:
     for key in ['excerpt', 'location', 'suggestion']:
         if data[key] is not None and not isinstance(data[key], str):
             data[key] = str(data[key])
+    
+    # Post-process location to ensure it's concise (just section number and title)
+    if data['location'] and isinstance(data['location'], str):
+        location = data['location'].strip()
+        
+        # If location is too long (> 150 chars), it likely includes clause text
+        if len(location) > 150:
+            # Try to extract just the heading part (before the first sentence ends)
+            # Look for patterns like "4. Title." or "Section 4: Title" and stop there
+            parts = location.split('. ', 1)
+            if len(parts) > 1 and len(parts[0]) < 100:
+                # Keep just the section number and title
+                data['location'] = parts[0] + '.'
+            else:
+                # Truncate at 150 chars as fallback
+                data['location'] = location[:150] + '...'
+        
+        # Clean up any trailing whitespace
+        data['location'] = data['location'].strip()
     
     return data
 
@@ -205,14 +264,32 @@ def analyze_standard(text: str, standard: str) -> dict:
         model = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
         
         # Construct user prompt from template
+        contract_text_sample = text[:50000]  # Limit to ~50k chars to avoid token limits
         user_prompt = USER_PROMPT_TEMPLATE.format(
             standard=standard,
-            contract_text=text[:50000]  # Limit to ~50k chars to avoid token limits
+            contract_text=contract_text_sample
         )
+        
+        # === ENHANCED DEBUGGING ===
+        print(f"\n[AI DEBUG] Analyzing standard: {standard}")
+        print(f"[AI DEBUG] Contract text length: {len(contract_text_sample)} chars")
+        
+        # Show first 500 chars of what AI receives
+        preview = contract_text_sample[:500].replace('\n', '\\n')
+        print(f"[AI DEBUG] First 500 chars sent to AI: {preview}...")
+        
+        # Check for numbering in the text being sent
+        has_numbers = any(f"{i}." in contract_text_sample for i in range(1, 10))
+        has_roman = any(roman in contract_text_sample for roman in ["I.", "II.", "III.", "IV.", "V."])
+        has_section = "Section" in contract_text_sample
+        
+        print(f"[AI DEBUG] Numbering in text: decimal={has_numbers}, roman={has_roman}, section={has_section}")
         
         # Call OpenAI with strict JSON response format
         logger.info(f"Analyzing standard: {standard}")
         response_text = _call_openai(SYSTEM_PROMPT, user_prompt, model)
+        
+        print(f"[AI DEBUG] AI response received: {len(response_text)} chars")
         
         # Parse and validate JSON response
         try:
@@ -226,9 +303,19 @@ def analyze_standard(text: str, standard: str) -> dict:
             result = _validate_json_response(response_text)
         
         duration = time.time() - start_time
+        
+        # === ENHANCED DEBUGGING ===
+        print(f"[AI DEBUG] Analysis result for '{standard}':")
+        print(f"[AI DEBUG]   - found: {result['found']}")
+        print(f"[AI DEBUG]   - location: {result.get('location', 'None')}")
+        if result.get('location'):
+            location_preview = result['location'][:100]
+            print(f"[AI DEBUG]   - location preview: '{location_preview}'")
+        print(f"[AI DEBUG]   - duration: {duration:.2f}s")
+        
         logger.info(
             f"Analysis complete: standard={standard}, found={result['found']}, "
-            f"duration={duration:.2f}s"
+            f"location={result.get('location', 'None')}, duration={duration:.2f}s"
         )
         
         return result
