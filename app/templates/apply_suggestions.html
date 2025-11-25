@@ -17,6 +17,13 @@
             <p class="text-muted mb-0">
                 <strong>Contract:</strong> {{ contract_name }}<br>
                 <strong>Contract ID:</strong> {{ contract_id }}<br>
+                {% if party_info and party_info['found'] %}
+                <strong>Parties:</strong>
+                <span style="color: #007bff; font-weight: bold;">{{ party_info['party1']['legal_name'] }}</span>
+                <span style="color: #666;">({{ party_info['party1']['defined_as'] }})</span> and
+                <span style="color: #28a745; font-weight: bold;">{{ party_info['party2']['legal_name'] }}</span>
+                <span style="color: #666;">({{ party_info['party2']['defined_as'] }})</span><br>
+                {% endif %}
                 {% if timestamp %}
                 <strong>Analyzed:</strong> {{ timestamp }}
                 {% endif %}
@@ -398,3 +405,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+

@@ -530,11 +530,33 @@ def analyze_contract_route(contract_id):
         print(f"Running AI analysis for {len(all_standards)} standards...")
         analysis_results = run_analysis(contract_text, all_standards, preferred_standards_dict)
         print(f"Analysis complete: {len(analysis_results)} results")
-        
-        # Cache the results with 30-minute TTL
+
+        # Detect contract parties
+        print("`n[DEBUG] About to detect contract parties...")
+        try:
+            from app.services.llm_client import detect_contract_parties
+            print("[DEBUG] Import successful, calling detect_contract_parties...")
+            party_info = detect_contract_parties(contract_text)
+            print(f"[DEBUG] Party detection returned: {party_info}")
+            if party_info.get("found"):
+                party1 = party_info.get("party1", {})
+                party2 = party_info.get("party2", {})
+                print(f"`n[PARTY DETECTION]")
+                print(f"  Party 1: {party1.get('legal_name', 'Unknown')} (defined as: {party1.get('defined_as', 'Unknown')})")
+                print(f"  Party 2: {party2.get('legal_name', 'Unknown')} (defined as: {party2.get('defined_as', 'Unknown')})")
+            else:
+                print(f"`n[PARTY DETECTION] Could not clearly identify contract parties")
+                party_info = {"found": False}
+        except Exception as e:
+            print(f"`n[PARTY DETECTION] Failed with exception: {e}")
+            import traceback
+            traceback.print_exc()
+            party_info = {"found": False}
+ # Cache the results with 30-minute TTL
         cache_data = {
             'results': analysis_results,
             'selected': all_standards,
+            'party_info': party_info,
             'ts': datetime.utcnow().isoformat()
         }
         analysis_cache.set(contract_id, cache_data, ttl=1800)
@@ -638,6 +660,7 @@ def apply_suggestions_new(contract_id):
         # Extract cached data
         analysis_results = cached_data.get('results', {})
         selected_standards = cached_data.get('selected', [])
+        party_info = cached_data.get('party_info', {'found': False})
         timestamp = cached_data.get('ts', '')
         
         print(f"Found cached analysis: {len(analysis_results)} results")
@@ -667,6 +690,12 @@ def apply_suggestions_new(contract_id):
                 'source': result.get('source', 'ai')
             })
         
+
+        # Transform suggestions with actual party names
+        from app.utils.party_replacer import transform_suggestions
+        summary_items = transform_suggestions(summary_items, party_info)
+        print(f"[DEBUG] Party replacement applied")
+
         print(f"Rendering apply_suggestions with {len(summary_items)} items")
         
         # Render template with analysis_completed flag
@@ -677,6 +706,8 @@ def apply_suggestions_new(contract_id):
             contract_id=contract_id,
             contract_name=contract_name,
             timestamp=timestamp
+,
+            party_info=party_info
         )
         
     except Exception as e:
@@ -715,6 +746,14 @@ def apply_suggestions_action(contract_id):
         print(f"Applying {len(items)} suggestions to contract {contract_id}")
         for i, item in enumerate(items[:3]):
             print(f"  [{i+1}] {item.get('standard', 'N/A')[:40]}...")
+
+        # Get party info from cache for party replacement
+        cached_data = analysis_cache.get(contract_id)
+        party_info = cached_data.get('party_info', {'found': False}) if cached_data else {'found': False}
+        from app.utils.party_replacer import transform_suggestions
+        items = transform_suggestions(items, party_info)
+        print(f"[DEBUG] Party replacement applied to document suggestions")
+
         
         # Get contract metadata
         print(f"\nStep 1: Fetching contract metadata...")

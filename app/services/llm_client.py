@@ -329,3 +329,74 @@ def analyze_standard(text: str, standard: str) -> dict:
             f"error={type(e).__name__}"
         )
         raise RuntimeError("Failed to analyze standard")
+
+
+# Party Detection Prompt
+PARTY_DETECTION_PROMPT = """Analyze the contract text and identify the two main parties.
+
+CONTRACT TEXT (first 5000 characters):
+{text}
+
+Identify:
+1. Party 1 (typically the contractor/vendor/service provider)
+2. Party 2 (typically the customer/client/buyer)
+
+For each party, provide:
+- legal_name: The full legal entity name
+- defined_as: What they're referred to in the contract (e.g., "Contractor", "Vendor", "Client", "Customer")
+- role: Either "contractor" or "customer" (contractor = service provider, customer = service recipient)
+
+Determine roles based on:
+- Who is providing the service/product = contractor
+- Who is receiving/purchasing the service/product = customer
+
+Return as JSON:
+{{
+    "party1": {{
+        "legal_name": "Full legal name",
+        "defined_as": "Contractor or Vendor or similar",
+        "role": "contractor"
+    }},
+    "party2": {{
+        "legal_name": "Full legal name", 
+        "defined_as": "Client or Customer or similar",
+        "role": "customer"
+    }},
+    "found": true
+}}
+
+If parties cannot be clearly identified, return {{"found": false}}"""
+
+
+def detect_contract_parties(text: str) -> dict:
+    """
+    Detect the two main parties in a contract (contractor and customer).
+    
+    Args:
+        text: Full contract text
+        
+    Returns:
+        Dictionary with party1, party2, and found status
+    """
+    try:
+        model = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
+        
+        # Use first 5000 characters where parties are typically defined
+        text_sample = text[:5000] if len(text) > 5000 else text
+        
+        prompt = PARTY_DETECTION_PROMPT.format(text=text_sample)
+        response = _call_openai(SYSTEM_PROMPT, prompt, model)
+        
+        # Parse JSON response
+        party_info = json.loads(response)
+        
+        logger.info(f"Party detection complete: found={party_info.get('found', False)}")
+        return party_info
+        
+    except Exception as e:
+        logger.warning(f"Party detection failed: {e}")
+        return {
+            'party1': {'legal_name': 'Unknown', 'defined_as': 'Unknown', 'role': 'contractor'},
+            'party2': {'legal_name': 'Unknown', 'defined_as': 'Unknown', 'role': 'customer'},
+            'found': False
+        }
