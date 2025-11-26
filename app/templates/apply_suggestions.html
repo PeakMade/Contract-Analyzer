@@ -22,7 +22,11 @@
                 <span style="color: #007bff; font-weight: bold;">{{ party_info['party1']['legal_name'] }}</span>
                 <span style="color: #666;">({{ party_info['party1']['defined_as'] }})</span> and
                 <span style="color: #28a745; font-weight: bold;">{{ party_info['party2']['legal_name'] }}</span>
-                <span style="color: #666;">({{ party_info['party2']['defined_as'] }})</span><br>
+                <span style="color: #666;">({{ party_info['party2']['defined_as'] }})</span>
+                <button type="button" class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#editPartiesModal" style="padding: 2px 8px; font-size: 12px;">
+                    <i class="bi bi-pencil"></i> Edit Parties
+                </button>
+                <br>
                 {% endif %}
                 {% if timestamp %}
                 <strong>Analyzed:</strong> {{ timestamp }}
@@ -240,7 +244,153 @@
     </div>
 </div>
 
+<!-- Edit Parties Modal -->
+{% if party_info and party_info['found'] %}
+<div class="modal fade" id="editPartiesModal" tabindex="-1" aria-labelledby="editPartiesModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editPartiesModalLabel">Edit Contract Parties</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPartiesForm">
+                    <div class="mb-3">
+                        <h6 class="text-primary">Party 1 ({{ party_info['party1']['role']|title }})</h6>
+                        <div class="mb-2">
+                            <label for="party1_legal_name" class="form-label">Legal Name</label>
+                            <input type="text" class="form-control" id="party1_legal_name" name="party1_legal_name" value="{{ party_info['party1']['legal_name'] }}" required>
+                        </div>
+                        <div class="mb-2">
+                            <label for="party1_defined_as" class="form-label">Defined As</label>
+                            <input type="text" class="form-control" id="party1_defined_as" name="party1_defined_as" value="{{ party_info['party1']['defined_as'] }}" required>
+                        </div>
+                        <div class="mb-2">
+                            <label for="party1_role" class="form-label">Role</label>
+                            <select class="form-select" id="party1_role" name="party1_role" required>
+                                <option value="contractor" {% if party_info['party1']['role'] == 'contractor' %}selected{% endif %}>Contractor</option>
+                                <option value="customer" {% if party_info['party1']['role'] == 'customer' %}selected{% endif %}>Customer</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="text-success">Party 2 ({{ party_info['party2']['role']|title }})</h6>
+                        <div class="mb-2">
+                            <label for="party2_legal_name" class="form-label">Legal Name</label>
+                            <input type="text" class="form-control" id="party2_legal_name" name="party2_legal_name" value="{{ party_info['party2']['legal_name'] }}" required>
+                        </div>
+                        <div class="mb-2">
+                            <label for="party2_defined_as" class="form-label">Defined As</label>
+                            <input type="text" class="form-control" id="party2_defined_as" name="party2_defined_as" value="{{ party_info['party2']['defined_as'] }}" required>
+                        </div>
+                        <div class="mb-2">
+                            <label for="party2_role" class="form-label">Role</label>
+                            <select class="form-select" id="party2_role" name="party2_role" required>
+                                <option value="contractor" {% if party_info['party2']['role'] == 'contractor' %}selected{% endif %}>Contractor</option>
+                                <option value="customer" {% if party_info['party2']['role'] == 'customer' %}selected{% endif %}>Customer</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info" role="alert">
+                        <small><i class="bi bi-info-circle"></i> Changes will apply to all suggestions and the downloaded document.</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="resetPartiesBtn">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset to AI Detection
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="applyPartiesBtn">
+                    <i class="bi bi-check-circle"></i> Apply Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script>
+// Party Override Functionality
+{% if party_info and party_info['found'] %}
+// Store original AI-detected party info for reset
+const originalPartyInfo = {{ party_info|tojson }};
+
+document.getElementById('applyPartiesBtn').addEventListener('click', function() {
+    const form = document.getElementById('editPartiesForm');
+    
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const updatedPartyInfo = {
+        found: true,
+        party1: {
+            legal_name: document.getElementById('party1_legal_name').value,
+            defined_as: document.getElementById('party1_defined_as').value,
+            role: document.getElementById('party1_role').value
+        },
+        party2: {
+            legal_name: document.getElementById('party2_legal_name').value,
+            defined_as: document.getElementById('party2_defined_as').value,
+            role: document.getElementById('party2_role').value
+        }
+    };
+    
+    // Show loading state
+    const btn = this;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Applying...';
+    btn.disabled = true;
+    
+    // Send update to server
+    fetch('/api/contract/{{ contract_id }}/update-parties', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedPartyInfo)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal and reload page to show updated suggestions
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editPartiesModal'));
+            modal.hide();
+            window.location.reload();
+        } else {
+            alert('Error updating parties: ' + (data.error || 'Unknown error'));
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating parties. Please try again.');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+});
+
+document.getElementById('resetPartiesBtn').addEventListener('click', function() {
+    if (confirm('Reset parties to AI-detected values?')) {
+        // Restore original values to form
+        document.getElementById('party1_legal_name').value = originalPartyInfo.party1.legal_name;
+        document.getElementById('party1_defined_as').value = originalPartyInfo.party1.defined_as;
+        document.getElementById('party1_role').value = originalPartyInfo.party1.role;
+        document.getElementById('party2_legal_name').value = originalPartyInfo.party2.legal_name;
+        document.getElementById('party2_defined_as').value = originalPartyInfo.party2.defined_as;
+        document.getElementById('party2_role').value = originalPartyInfo.party2.role;
+        
+        // Trigger apply to update server
+        document.getElementById('applyPartiesBtn').click();
+    }
+});
+{% endif %}
+
 // Function to show download modal
 function showDownloadModal(downloadPath, filename, standardsApplied) {
     // Update modal content

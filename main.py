@@ -641,6 +641,52 @@ def analyze_contract_route(contract_id):
             except Exception as cleanup_error:
                 print(f"Warning: Failed to clean up temporary file: {cleanup_error}")
 
+@app.route('/api/contract/<contract_id>/update-parties', methods=['POST'])
+@login_required
+def update_contract_parties(contract_id):
+    """Update party information in cache and refresh suggestions"""
+    try:
+        print(f"\n=== DEBUG update_contract_parties ===")
+        print(f"Contract ID: {contract_id}")
+        
+        # Get updated party info from request
+        updated_party_info = request.json
+        print(f"Updated party info: {updated_party_info}")
+        
+        # Validate party info structure
+        if not updated_party_info or not updated_party_info.get('found'):
+            return jsonify({'success': False, 'error': 'Invalid party information'}), 400
+        
+        if not updated_party_info.get('party1') or not updated_party_info.get('party2'):
+            return jsonify({'success': False, 'error': 'Missing party data'}), 400
+        
+        # Get existing cache
+        cached_data = analysis_cache.get(contract_id)
+        
+        if not cached_data:
+            return jsonify({'success': False, 'error': 'No analysis found in cache'}), 404
+        
+        # Update party info in cache
+        cached_data['party_info'] = updated_party_info
+        
+        # Save back to cache with same TTL
+        analysis_cache.set(contract_id, cached_data, ttl=1800)
+        
+        print(f"✓ Party info updated in cache for contract {contract_id}")
+        print(f"  Party 1: {updated_party_info['party1']['legal_name']} ({updated_party_info['party1']['role']})")
+        print(f"  Party 2: {updated_party_info['party2']['legal_name']} ({updated_party_info['party2']['role']})")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Party information updated successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error in update_contract_parties: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/apply_suggestions_new/<contract_id>')
 @login_required
 def apply_suggestions_new(contract_id):
