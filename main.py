@@ -314,7 +314,8 @@ def upload_completed_contract():
         # Upload the completed file to ContractFiles
         upload_result = sharepoint_service.upload_to_contract_files(
             file=file,
-            filename=completed_filename
+            filename=completed_filename,
+            user_email=session.get('user_email')  # Attribute to the user uploading
         )
         
         if upload_result['success']:
@@ -472,12 +473,21 @@ def contract_standards(contract_id):
         
         # Get preferred standards from SharePoint
         print(f"Loading preferred standards from SharePoint...")
-        preferred_standards = get_preferred_standards()
-        print(f"Loaded {len(preferred_standards)} preferred standards")
-        if preferred_standards:
-            print(f"First standard example: {preferred_standards[0]}")
-        else:
-            print(f"WARNING: No standards loaded! Check SharePoint connection and list configuration.")
+        try:
+            preferred_standards = get_preferred_standards()
+            print(f"Loaded {len(preferred_standards)} preferred standards")
+            if preferred_standards:
+                print(f"First standard example: {preferred_standards[0]}")
+            else:
+                print(f"WARNING: No standards loaded! Check SharePoint connection and list configuration.")
+        except PermissionError as e:
+            # Token expired - show session expiration message
+            if 'SESSION_EXPIRED' in str(e):
+                print(f"Token expired while loading standards - clearing session")
+                session.clear()
+                flash('Your session has expired. Please log in again.', 'warning')
+                return redirect(url_for('index'))
+            raise
         
         return render_template('standards.html',
                              contract_id=contract_id,
@@ -530,33 +540,35 @@ def analyze_contract_route(contract_id):
         print(f"Running AI analysis for {len(all_standards)} standards...")
         analysis_results = run_analysis(contract_text, all_standards, preferred_standards_dict)
         print(f"Analysis complete: {len(analysis_results)} results")
-
-        # Detect contract parties
-        print("`n[DEBUG] About to detect contract parties...")
+        
+        # Detect contract parties  
+        print("\n[DEBUG] About to detect contract parties...")
         try:
             from app.services.llm_client import detect_contract_parties
             print("[DEBUG] Import successful, calling detect_contract_parties...")
             party_info = detect_contract_parties(contract_text)
             print(f"[DEBUG] Party detection returned: {party_info}")
-            if party_info.get("found"):
-                party1 = party_info.get("party1", {})
-                party2 = party_info.get("party2", {})
-                print(f"`n[PARTY DETECTION]")
+            if party_info.get('found'):
+                party1 = party_info.get('party1', {})
+                party2 = party_info.get('party2', {})
+                print(f"\n[PARTY DETECTION]")
                 print(f"  Party 1: {party1.get('legal_name', 'Unknown')} (defined as: {party1.get('defined_as', 'Unknown')})")
                 print(f"  Party 2: {party2.get('legal_name', 'Unknown')} (defined as: {party2.get('defined_as', 'Unknown')})")
             else:
-                print(f"`n[PARTY DETECTION] Could not clearly identify contract parties")
-                party_info = {"found": False}
+                print(f"\n[PARTY DETECTION] Could not clearly identify contract parties")
+                party_info = {'found': False}
         except Exception as e:
-            print(f"`n[PARTY DETECTION] Failed with exception: {e}")
+            print(f"\n[PARTY DETECTION] Failed with exception: {e}")
             import traceback
             traceback.print_exc()
-            party_info = {"found": False}
- # Cache the results with 30-minute TTL
+            party_info = {'found': False}
+        
+        # Cache the results with 30-minute TTL (include party_info and original_party_info)
         cache_data = {
             'results': analysis_results,
             'selected': all_standards,
             'party_info': party_info,
+            'original_party_info': party_info.copy() if party_info else {'found': False},  # Store AI-detected original
             'ts': datetime.utcnow().isoformat()
         }
         analysis_cache.set(contract_id, cache_data, ttl=1800)
@@ -692,7 +704,9 @@ def update_contract_parties(contract_id):
 def apply_suggestions_new(contract_id):
     """Display AI analysis results for contract"""
     try:
-        print(f"\n=== DEBUG apply_suggestions_new ===")
+        print(f"\n{'='*60}")
+        print(f"XXXX DEBUG apply_suggestions_new - CODE VERSION 2.0 XXXX")
+        print(f"{'='*60}")
         print(f"Contract ID: {contract_id}")
         
         # Get analysis from cache
@@ -710,6 +724,15 @@ def apply_suggestions_new(contract_id):
         timestamp = cached_data.get('ts', '')
         
         print(f"Found cached analysis: {len(analysis_results)} results")
+        print(f"[DEBUG PARTY] party_info from cache: {party_info}")
+        print(f"[DEBUG PARTY] party_info type: {type(party_info)}")
+        print(f"[DEBUG PARTY] party_info.get('found'): {party_info.get('found')}")
+        if party_info.get('found'):
+            print(f"[DEBUG PARTY] ✓ Party info found in cache!")
+            print(f"[DEBUG PARTY]   - party1: {party_info.get('party1')}")
+            print(f"[DEBUG PARTY]   - party2: {party_info.get('party2')}")
+        else:
+            print(f"[DEBUG PARTY] ✗ Party info NOT found or found=False")
         
         # Get contract details from SharePoint
         from app.services.sharepoint_service import SharePointService
@@ -736,24 +759,63 @@ def apply_suggestions_new(contract_id):
                 'source': result.get('source', 'ai')
             })
         
-
+        print(f"\n{'='*70}")
+        print(f"[PARTY REPLACEMENT DEBUG - RESULTS PAGE]")
+        print(f"{'='*70}")
+        print(f"party_info type: {type(party_info)}")
+        print(f"party_info: {party_info}")
+        print(f"party_info.get('found'): {party_info.get('found') if isinstance(party_info, dict) else 'NOT A DICT'}")
+        
+        # Show first suggestion BEFORE replacement
+        first_missing = next((item for item in summary_items if not item['present'] and item['suggestion'] != 'N/A'), None)
+        if first_missing:
+            print(f"\nFIRST MISSING STANDARD BEFORE REPLACEMENT:")
+            print(f"  Standard: {first_missing['standard']}")
+            print(f"  Suggestion (first 200 chars): {first_missing['suggestion'][:200]}")
+            print(f"  Contains 'Contractor': {'Contractor' in first_missing['suggestion']}")
+            print(f"  Contains 'Customer': {'Customer' in first_missing['suggestion']}")
+        
         # Transform suggestions with actual party names
         from app.utils.party_replacer import transform_suggestions
+        print(f"\nCalling transform_suggestions()...")
         summary_items = transform_suggestions(summary_items, party_info)
-        print(f"[DEBUG] Party replacement applied")
-
-        print(f"Rendering apply_suggestions with {len(summary_items)} items")
+        print(f"✓ transform_suggestions() returned")
         
-        # Render template with analysis_completed flag
+        # Show first suggestion AFTER replacement
+        if first_missing:
+            first_missing_after = next((item for item in summary_items if item['standard'] == first_missing['standard']), None)
+            if first_missing_after:
+                print(f"\nFIRST MISSING STANDARD AFTER REPLACEMENT:")
+                print(f"  Standard: {first_missing_after['standard']}")
+                print(f"  Suggestion (first 200 chars): {first_missing_after['suggestion'][:200]}")
+                print(f"  Contains 'Contractor': {'Contractor' in first_missing_after['suggestion']}")
+                print(f"  Contains 'Customer': {'Customer' in first_missing_after['suggestion']}")
+                print(f"  Contains 'Phonesuite': {'Phonesuite' in first_missing_after['suggestion']}")
+                print(f"  Contains 'Partner': {'Partner' in first_missing_after['suggestion']}")
+        
+        print(f"{'='*70}\n")
+        
+        print(f"Rendering apply_suggestions with {len(summary_items)} items")
+        print(f"[DEBUG TEMPLATE] About to render template with:")
+        print(f"[DEBUG TEMPLATE]   - contract_id: {contract_id}")
+        print(f"[DEBUG TEMPLATE]   - contract_name: {contract_name}")
+        print(f"[DEBUG TEMPLATE]   - timestamp: {timestamp}")
+        print(f"[DEBUG TEMPLATE]   - party_info: {party_info}")
+        print(f"[DEBUG TEMPLATE]   - party_info['found']: {party_info.get('found')}")
+        
+        # Get original AI-detected party info for reset functionality
+        original_party_info = cached_data.get('original_party_info', party_info)
+        
+        # Render template with analysis_completed flag and party info
         return render_template(
             'apply_suggestions.html',
             analysis_completed=True,
             summary=summary_items,
             contract_id=contract_id,
             contract_name=contract_name,
-            timestamp=timestamp
-,
-            party_info=party_info
+            timestamp=timestamp,
+            party_info=party_info,
+            original_party_info=original_party_info
         )
         
     except Exception as e:
@@ -792,14 +854,15 @@ def apply_suggestions_action(contract_id):
         print(f"Applying {len(items)} suggestions to contract {contract_id}")
         for i, item in enumerate(items[:3]):
             print(f"  [{i+1}] {item.get('standard', 'N/A')[:40]}...")
-
-        # Get party info from cache for party replacement
+        
+        # Get party info from cache to replace party terms in suggestions
         cached_data = analysis_cache.get(contract_id)
         party_info = cached_data.get('party_info', {'found': False}) if cached_data else {'found': False}
+        
+        # Transform suggestions with actual party names before applying to document
         from app.utils.party_replacer import transform_suggestions
         items = transform_suggestions(items, party_info)
-        print(f"[DEBUG] Party replacement applied to document suggestions")
-
+        print(f"✓ Party terms replaced in suggestions for document")
         
         # Get contract metadata
         print(f"\nStep 1: Fetching contract metadata...")
@@ -867,9 +930,16 @@ def apply_suggestions_action(contract_id):
         try:
             # Get all standards for style detection
             print(f"\nStep 4: Getting preferred standards for style detection...")
-            all_standards = get_preferred_standards()
-            known_standard_names = [s['standard'] for s in all_standards if 'standard' in s]
-            print(f"✓ Found {len(known_standard_names)} known standards")
+            try:
+                all_standards = get_preferred_standards()
+                known_standard_names = [s['standard'] for s in all_standards if 'standard' in s]
+                print(f"✓ Found {len(known_standard_names)} known standards")
+            except PermissionError as e:
+                # Token expired - show session expiration message
+                if 'SESSION_EXPIRED' in str(e):
+                    print(f"✗ ERROR: Token expired while loading standards")
+                    return jsonify({'error': 'Session expired', 'message': 'Your session has expired. Please log in again.'}), 401
+                raise
             
             # Apply suggestions to document
             print(f"\nStep 5: Appending {len(items)} standards to document...")
@@ -897,7 +967,9 @@ def apply_suggestions_action(contract_id):
                     drive_id=drive_id,
                     folder_path='',  # Same folder as original (root of ContractFiles)
                     filename=edited_filename,
-                    content=edited_content
+                    content=edited_content,
+                    user_email=session.get('user_email'),  # Attribute to user applying suggestions
+                    site_id=os.getenv('O365_SITE_ID')  # SharePoint site ID
                 )
                 print(f"✓ Upload successful: {upload_result.get('name')}")
             except PermissionError as e:
@@ -1063,4 +1135,9 @@ def download_edited_contract(contract_id):
         return jsonify({'error': 'Download failed', 'message': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # CRITICAL: Explicitly disable debug to prevent Werkzeug reloader
+    # Reloader causes Python bytecode caching that makes code changes not take effect
+    app.debug = False
+    app.config['DEBUG'] = False
+    app.config['TESTING'] = False
+    app.run(host='0.0.0.0', port=5000, debug=False, use_debugger=False, use_reloader=False)

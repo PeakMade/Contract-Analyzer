@@ -316,7 +316,7 @@
 // Party Override Functionality
 {% if party_info and party_info['found'] %}
 // Store original AI-detected party info for reset
-const originalPartyInfo = {{ party_info|tojson }};
+const originalPartyInfo = {{ original_party_info|tojson }};
 
 document.getElementById('applyPartiesBtn').addEventListener('click', function() {
     const form = document.getElementById('editPartiesForm');
@@ -385,8 +385,13 @@ document.getElementById('resetPartiesBtn').addEventListener('click', function() 
         document.getElementById('party2_defined_as').value = originalPartyInfo.party2.defined_as;
         document.getElementById('party2_role').value = originalPartyInfo.party2.role;
         
+        // Re-enable Apply button in case it was disabled
+        const applyBtn = document.getElementById('applyPartiesBtn');
+        applyBtn.disabled = false;
+        applyBtn.innerHTML = '<i class="bi bi-check-circle"></i> Apply Changes';
+        
         // Trigger apply to update server
-        document.getElementById('applyPartiesBtn').click();
+        applyBtn.click();
     }
 });
 {% endif %}
