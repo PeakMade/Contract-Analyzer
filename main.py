@@ -10,13 +10,16 @@ from app.services.text_extractor import extract_text
 from app.services.sp_preferred_standards import get_preferred_standards, get_preferred_standards_dict
 from app.services.analysis_orchestrator import analyze_contract as run_analysis
 from app.cache import analysis_cache
-from app.services.activity_logger import logger as activity_logger
 
 print("\n=== DEBUG APP INITIALIZATION ===")
 
-# Load environment variables
+# Load environment variables BEFORE importing activity_logger
 load_dotenv()
 print(f"DEBUG: .env file loaded")
+
+# Import activity_logger AFTER .env is loaded so it can read SP_LOG_LIST_ID
+from app.services.activity_logger import logger as activity_logger
+print(f"DEBUG: Activity logger initialized with log_list_id: {activity_logger.log_list_id}")
 
 app = Flask(__name__, static_folder='app/static', template_folder='app/templates')
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key')
@@ -89,6 +92,15 @@ def inject_auth():
 @login_required
 def index():
     print(f"\n=== DEBUG index() route called ===")
+    
+    # Log user access to app
+    try:
+        activity_logger.log_login()
+        print(f"DEBUG: User access logged to SharePoint")
+    except Exception as e:
+        print(f"DEBUG: Failed to log user access: {e}")
+        # Non-critical - don't block user
+    
     return render_template('index.html')
 
 @app.route('/submit-contract', methods=['POST'])
