@@ -43,7 +43,7 @@
                             </div>
                         </div>
 
-                        <div class="row mb-4">
+                        <div class="row">
                             <!-- File Upload Section -->
                             <div class="col-md-4">
                                 <label for="contractFile" class="form-label">Upload Contract (DOCX) <span class="text-danger">*</span></label>
@@ -72,7 +72,7 @@
                                     </div>
                                     
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label class="form-label">Business Terms <span class="info-icon" data-tooltip="Check if business approver has reviewed and approved the items below">ℹ️</span></label>
                                             <div class="form-check">
                                                 <input class="form-check-input" type="checkbox" id="compensation" name="businessTerms" value="compensation">
@@ -87,7 +87,14 @@
                                                 <label class="form-check-label" for="termDuration">Term (duration)</label>
                                             </div>
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
+                                            <label for="contractType" class="form-label">Contract Type <span class="text-danger">*</span></label>
+                                            <select class="form-select" id="contractType" name="contractType" required>
+                                                <option value="">Select Contract Type...</option>
+                                                <!-- Options will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
                                             <label for="additionalNotes" class="form-label">Additional Notes</label>
                                             <textarea class="form-control" id="additionalNotes" name="additionalNotes" rows="4" 
                                                       placeholder="Enter any additional notes or special requirements..."></textarea>
@@ -113,20 +120,21 @@
         <div class="tab-pane fade" id="view-dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
             <!-- Contracts Table -->
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header d-flex justify-content-between align-items-center" style="position: sticky; top: 0; z-index: 101; background-color: white;">
                     <span><i class="fas fa-file-contract me-2"></i>Contract Submissions</span>
                     <button class="btn btn-sm" onclick="loadDashboardData()" style="background: white; color: black; border: 1px solid #dee2e6; font-weight: 600;">
                         <i class="fas fa-sync me-1"></i>Refresh
                     </button>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
+                    <div class="table-responsive" style="height: calc(100vh - 250px); overflow-y: auto; overflow-x: auto;">
                         <table class="table table-hover mb-0" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
-                            <thead style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+                            <thead style="position: sticky; top: 0; z-index: 100; background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
                                 <tr>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Contract Name</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Submitter</th>
-                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Business Approver</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600; width: 50px; max-width: 50px;">Business Approver</th>
+                                    <th style="border-color: #0c5460; color: black; font-weight: 600;">Contract Type</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Date Submitted</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Date Requested</th>
                                     <th style="border-color: #0c5460; color: black; font-weight: 600;">Status</th>
@@ -327,6 +335,9 @@
 <script>
 // File upload functionality
 document.addEventListener('DOMContentLoaded', function() {
+    // Load Contract Type choices from SharePoint
+    loadContractTypeChoices();
+    
     // Check if URL has ?tab=dashboard parameter and switch to that tab
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('tab') === 'dashboard') {
@@ -563,6 +574,36 @@ function showSuccessMessage(message) {
     }, 5000);
 }
 
+// Function to load Contract Type choices from SharePoint
+function loadContractTypeChoices() {
+    fetch('/api/field-choices/ContractType')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.choices) {
+                const select = document.getElementById('contractType');
+                if (select) {
+                    // Clear existing options except the first placeholder
+                    while (select.options.length > 1) {
+                        select.remove(1);
+                    }
+                    
+                    // Add choices from SharePoint
+                    data.choices.forEach(choice => {
+                        const option = document.createElement('option');
+                        option.value = choice;
+                        option.textContent = choice;
+                        select.appendChild(option);
+                    });
+                    
+                    console.log('Loaded Contract Type choices:', data.choices);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading Contract Type choices:', error);
+        });
+}
+
 function loadDashboardData() {
     // Load field choices first if not already loaded
     if (riskAssigneeChoices.length === 0 || statusChoices.length === 0 || businessTermsChoices.length === 0) {
@@ -760,6 +801,7 @@ function updateContractsTable(contracts) {
                 <td style="border-color: #dee2e6;">${contractName}</td>
                 <td style="border-color: #dee2e6;"><small style="font-size: 0.85rem;">${contract.submitter_name}</small></td>
                 <td style="border-color: #dee2e6;"><small class="text-muted">${contract.business_approver_email}</small></td>
+                <td style="border-color: #dee2e6;"><small style="font-size: 0.85rem;">${contract.contract_type || 'N/A'}</small></td>
                 <td style="border-color: #dee2e6; white-space: nowrap;"><small style="font-size: 0.85rem;">${contract.date_submitted}</small></td>
                 <td style="border-color: #dee2e6; white-space: nowrap;"><small style="font-size: 0.85rem;">${contract.date_requested}</small></td>
                 <td style="border-color: #dee2e6;">

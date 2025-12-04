@@ -23,12 +23,10 @@ def _get_bearer_token() -> str:
     """
     Retrieve bearer token from Flask session and check if it's expired.
     
-    Proactively refreshes token if it's within 5 minutes of expiration.
-    
     Raises:
         PermissionError: If token is missing or expired.
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timezone
     
     token = session.get('access_token')
     
@@ -36,51 +34,21 @@ def _get_bearer_token() -> str:
         logger.warning("No access token found in session")
         raise PermissionError("SESSION_EXPIRED")
     
-    # Check if token is expired or near expiration (if expiration time is stored)
+    # Check if token is expired (if expiration time is stored)
     token_expires_str = session.get('token_expires_at')
     if token_expires_str:
         try:
             token_expires_at = datetime.fromisoformat(token_expires_str)
             # Use timezone-aware UTC time for comparison
             now_utc = datetime.now(timezone.utc)
-            
-            # Check if token is expired
             if now_utc >= token_expires_at:
-                logger.warning("Access token has expired, attempting refresh")
+                logger.warning("Access token has expired")
                 print(f"DEBUG sp_download: Token expired at {token_expires_at}")
                 print(f"DEBUG sp_download: Current time is {now_utc}")
-                
-                # Attempt to refresh token
-                try:
-                    token = _attempt_token_refresh()
-                    print(f"DEBUG sp_download: Token refreshed successfully after expiration")
-                    return token
-                except PermissionError:
-                    raise PermissionError("SESSION_EXPIRED")
-            
-            # Proactively refresh if token expires within 5 minutes
-            time_left_seconds = (token_expires_at - now_utc).total_seconds()
-            time_left_minutes = time_left_seconds / 60
-            
-            if time_left_seconds < 300:  # Less than 5 minutes
-                logger.info(f"Token expires in {time_left_minutes:.1f} minutes, refreshing proactively")
-                print(f"DEBUG sp_download: Proactive refresh - {time_left_minutes:.1f} minutes left")
-                
-                try:
-                    token = _attempt_token_refresh()
-                    print(f"DEBUG sp_download: Proactive refresh successful")
-                    return token
-                except PermissionError:
-                    # If refresh fails but token is still valid, continue with current token
-                    if time_left_seconds > 0:
-                        logger.warning("Proactive refresh failed, continuing with current token")
-                        print(f"DEBUG sp_download: Refresh failed but token still valid for {time_left_minutes:.1f} min")
-                        return token
-                    else:
-                        raise PermissionError("SESSION_EXPIRED")
+                raise PermissionError("SESSION_EXPIRED")
             else:
-                print(f"DEBUG sp_download: Token valid for {time_left_minutes:.1f} more minutes")
-                
+                time_left = (token_expires_at - now_utc).total_seconds() / 60
+                print(f"DEBUG sp_download: Token valid for {time_left:.1f} more minutes")
         except ValueError as e:
             logger.warning(f"Could not parse token expiration: {e}")
             # Continue with token anyway - API will reject if expired
@@ -92,10 +60,6 @@ def _attempt_token_refresh() -> str:
     """
     Attempt to refresh the access token using MSAL silent acquisition.
     
-    This uses the token cache stored in session which contains the refresh token
-    obtained during initial login. MSAL will automatically use the refresh token
-    to get a new access token without requiring user interaction.
-    
     Returns:
         New access token if successful.
     
@@ -105,8 +69,6 @@ def _attempt_token_refresh() -> str:
     try:
         from flask import current_app
         import msal
-        from app.utils.token_cache_helper import get_token_cache
-        from datetime import datetime, timedelta, timezone as tz
         
         # Get user email from session
         user_email = session.get('user_email')
@@ -114,65 +76,37 @@ def _attempt_token_refresh() -> str:
             logger.warning("Cannot refresh token: no user_email in session")
             raise PermissionError("SESSION_EXPIRED")
         
-        print(f"DEBUG sp_download: Attempting token refresh for {user_email}")
-        
-        # Get token cache from session (contains refresh token)
-        token_cache = get_token_cache()
-        
-        # Create MSAL app with token cache
+        # Create MSAL app
         msal_app = msal.ConfidentialClientApplication(
             current_app.config['CLIENT_ID'],
             authority=current_app.config['AUTHORITY'],
-            client_credential=current_app.config['CLIENT_SECRET'],
-            token_cache=token_cache
+            client_credential=current_app.config['CLIENT_SECRET']
         )
         
-        # Get accounts from cache
+        # Attempt silent token acquisition
         accounts = msal_app.get_accounts(username=user_email)
-        print(f"DEBUG sp_download: Found {len(accounts)} cached accounts")
-        
         if accounts:
             logger.info(f"Attempting silent token refresh for {user_email}")
-            print(f"DEBUG sp_download: Using account: {accounts[0].get('username')}")
-            
-            # Attempt silent token acquisition (uses refresh token from cache)
+            print(f"DEBUG sp_download: Attempting silent token refresh")
             result = msal_app.acquire_token_silent(
                 scopes=["User.Read", "Files.ReadWrite.All", "Sites.ReadWrite.All"],
                 account=accounts[0]
             )
             
             if result and 'access_token' in result:
-                # Update session with new token and expiration
+                # Update session with new token
                 session['access_token'] = result['access_token']
-                
-                # Update token expiration time
-                expires_in = result.get('expires_in', 3600)
-                token_expires_at = datetime.now(tz.utc) + timedelta(seconds=expires_in)
-                session['token_expires_at'] = token_expires_at.isoformat()
-                session.modified = True
-                
                 logger.info("Successfully refreshed access token")
-                print(f"DEBUG sp_download: Token refreshed successfully, expires at {token_expires_at}")
+                print(f"DEBUG sp_download: Token refreshed successfully")
                 return result['access_token']
-            else:
-                error_desc = result.get('error_description', 'Unknown error') if result else 'No result'
-                logger.warning(f"Silent token refresh returned no token: {error_desc}")
-                print(f"DEBUG sp_download: Refresh failed: {error_desc}")
-        else:
-            logger.warning("No accounts found in token cache")
-            print(f"DEBUG sp_download: No accounts in cache - user needs to re-authenticate")
         
         logger.warning("Silent token refresh failed - user needs to re-authenticate")
+        print(f"DEBUG sp_download: Silent token refresh failed")
         raise PermissionError("SESSION_EXPIRED")
         
-    except PermissionError:
-        # Re-raise PermissionError as-is
-        raise
     except Exception as e:
         logger.error(f"Token refresh error: {str(e)}")
-        print(f"DEBUG sp_download: Token refresh exception: {str(e)}")
-        import traceback
-        print(f"DEBUG sp_download: Traceback: {traceback.format_exc()}")
+        print(f"DEBUG sp_download: Token refresh error: {str(e)}")
         raise PermissionError("SESSION_EXPIRED")
 
 

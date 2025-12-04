@@ -165,8 +165,22 @@
   <div class="analysis-prep">
     <form method="post" action="{{ url_for('analyze_contract', contract_id=contract_id) }}" style="margin: 10px 0;">
       
+      <!-- Standard Type Selector -->
+      <div style="margin: 10px 0 20px 0;">
+        <label for="standardTypeDropdown" style="color: #495057; font-weight: 600; font-size: 1rem; display: block; margin-bottom: 8px;">
+          Select Standard Type:
+        </label>
+        <select id="standardTypeDropdown" 
+                style="width: 300px; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 0.95rem; background: white; cursor: pointer; font-weight: 500;">
+          <option value="default" selected>Default Standards (19)</option>
+          <option value="type1">Type 1 - Placeholder</option>
+          <option value="type2">Type 2 - Placeholder</option>
+          <option value="type3">Type 3 - Placeholder</option>
+        </select>
+      </div>
+
       <!-- Default Standards Selection -->
-      <div class="standards-selection" style="margin: 10px 0;">
+      <div id="default-standards-section" class="standards-selection standard-type-section" style="margin: 10px 0;">
         <h3 style="color: #495057; margin-bottom: 10px; font-weight: 600; font-size: 1.1rem;">
           Default Standards
           <button type="button" onclick="selectAllStandards()" class="select-all-btn-immediate"
@@ -217,6 +231,69 @@
             </button>
           </div>
 
+        </div>
+      </div>
+
+      <!-- Type 1 Standards Section (Hidden by default) -->
+      <div id="type1-standards-section" class="standards-selection standard-type-section" style="margin: 10px 0; display: none;">
+        <h3 style="color: #495057; margin-bottom: 10px; font-weight: 600; font-size: 1.1rem;">
+          Type 1 Standards (Placeholder)
+        </h3>
+        <div class="standards-container"
+          style="border: 2px solid #e9ecef; border-radius: 8px; padding: 12px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <div class="standards-grid"
+            style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
+              <input type="checkbox" name="standards" value="Type 1 - Standard A" style="margin-right: 8px; transform: scale(1.1);">
+              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 1 - Standard A</span>
+            </label>
+            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
+              <input type="checkbox" name="standards" value="Type 1 - Standard B" style="margin-right: 8px; transform: scale(1.1);">
+              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 1 - Standard B</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Type 2 Standards Section (Hidden by default) -->
+      <div id="type2-standards-section" class="standards-selection standard-type-section" style="margin: 10px 0; display: none;">
+        <h3 style="color: #495057; margin-bottom: 10px; font-weight: 600; font-size: 1.1rem;">
+          Type 2 Standards (Placeholder)
+        </h3>
+        <div class="standards-container"
+          style="border: 2px solid #e9ecef; border-radius: 8px; padding: 12px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <div class="standards-grid"
+            style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
+              <input type="checkbox" name="standards" value="Type 2 - Standard X" style="margin-right: 8px; transform: scale(1.1);">
+              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 2 - Standard X</span>
+            </label>
+            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
+              <input type="checkbox" name="standards" value="Type 2 - Standard Y" style="margin-right: 8px; transform: scale(1.1);">
+              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 2 - Standard Y</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Type 3 Standards Section (Hidden by default) -->
+      <div id="type3-standards-section" class="standards-selection standard-type-section" style="margin: 10px 0; display: none;">
+        <h3 style="color: #495057; margin-bottom: 10px; font-weight: 600; font-size: 1.1rem;">
+          Type 3 Standards (Placeholder)
+        </h3>
+        <div class="standards-container"
+          style="border: 2px solid #e9ecef; border-radius: 8px; padding: 12px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <div class="standards-grid"
+            style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
+              <input type="checkbox" name="standards" value="Type 3 - Standard Alpha" style="margin-right: 8px; transform: scale(1.1);">
+              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 3 - Standard Alpha</span>
+            </label>
+            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
+              <input type="checkbox" name="standards" value="Type 3 - Standard Beta" style="margin-right: 8px; transform: scale(1.1);">
+              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 3 - Standard Beta</span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -558,6 +635,32 @@ function addCustomStandard() {
   setTimeout(() => msg.remove(), 3000);
 }
 
+// Handle standard type dropdown changes
+function handleStandardTypeChange() {
+  const dropdown = document.getElementById('standardTypeDropdown');
+  const selectedType = dropdown.value;
+  
+  // Hide all standard type sections
+  const allSections = document.querySelectorAll('.standard-type-section');
+  allSections.forEach(section => {
+    section.style.display = 'none';
+  });
+  
+  // Show the selected section
+  const sectionId = selectedType + '-standards-section';
+  const selectedSection = document.getElementById(sectionId);
+  if (selectedSection) {
+    selectedSection.style.display = 'block';
+  }
+  
+  // If switching to default, keep SELECT ALL/DESELECT ALL buttons visible
+  // Otherwise, hide them (they're in the default section header)
+  const selectButtons = document.querySelector('.select-all-btn-immediate')?.parentElement;
+  if (selectButtons && selectedType === 'default') {
+    // Buttons are already in the default section, so they'll show automatically
+  }
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
   const addButton = document.getElementById('add-custom-standard');
@@ -574,6 +677,14 @@ document.addEventListener('DOMContentLoaded', function() {
         addCustomStandard();
       }
     });
+  }
+
+  // Set up standard type dropdown handler
+  const standardTypeDropdown = document.getElementById('standardTypeDropdown');
+  if (standardTypeDropdown) {
+    standardTypeDropdown.addEventListener('change', handleStandardTypeChange);
+    // Initialize to show default standards on page load
+    handleStandardTypeChange();
   }
 
   // Show loading overlay when AI analysis form is submitted

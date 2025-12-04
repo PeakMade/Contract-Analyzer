@@ -34,48 +34,85 @@ HARD CONSTRAINTS (MUST FOLLOW):
 - Do NOT synthesize your own headings like "Confidentiality and Non-Compete section" if that exact text does not exist.
 
 SECTION IDENTIFICATION RULES (CRITICAL - MUST FOLLOW):
-1. Match based on SEMANTIC MEANING of the entire section, not keyword overlap.
+1. SECTION TITLE MATCHING (HIGHEST PRIORITY):
+   - ALWAYS scan the entire contract for section headings that match or closely relate to "{standard}"
+   - If you find a section explicitly titled with the standard name (e.g., "Independent Contractors", "Indemnification", "Confidentiality"), this should be your FIRST CHOICE
+   - Examples of title matches:
+     * "Independent Contractor" standard → Section titled "Independent Contractors", "Independent Contractor Status", "No Agency"
+     * "Indemnification" standard → Section titled "Indemnification", "Indemnity", "Hold Harmless"
+     * "Limitation of Liability" standard → Section titled "Limitation of Liability", "Liability Limits", "Damages Cap"
+   - Only choose a differently-titled section if the matching-titled section does NOT actually address the topic
+   - This rule applies to ALL standards - prioritize title matches universally
+
+2. Match based on SEMANTIC MEANING of the entire section, not keyword overlap.
    - Keywords like "acknowledges", "agrees", "warrants", "represents" appear in many contexts
    - DO NOT match based on word similarity alone
    - The section's PRIMARY PURPOSE must align with the standard being searched
+   - Example: Don't match "Independent Contractor" just because a R&W section mentions "authorized representatives"
 
-2. Structural hierarchy matters:
+3. Structural hierarchy matters:
    - First identify the top-level section (A., B., C., etc. or Section 1, Section 2, etc.)
    - Then identify subsections (a., b., c., etc.)
    - Match at the highest structural level that fully represents the standard
    - A subsection like "H.b" is preferred if it's the dedicated location for that standard
 
-3. Prefer dedicated sections over partial mentions:
+4. Prefer dedicated sections over partial mentions:
    - If a contract has a section explicitly labeled or functioning as the standard (e.g., "Representations and Warranties"), choose that
    - Do NOT choose sections that only contain passing references or tangential mentions
    - If similar wording appears in multiple locations, choose the STRONGEST SEMANTIC MATCH, not the first occurrence
 
-4. Exclude operational or contextual mentions:
-   - Operational statements (e.g., "contractor warrants its work will be of good quality") are performance obligations, not representations
-   - Service descriptions, acknowledgments, and general agreements are NOT the same as dedicated standard clauses
-   - Indemnity language that happens to contain "warrants" is NOT a Representations and Warranties clause
+5. Understand the PURPOSE of common sections to avoid false matches:
+   - "Representations and Warranties" sections are about parties making factual statements about their authority, status, and capacity at time of signing
+   - "Independent Contractor" sections establish the nature of the business relationship between parties
+   - "Indemnification" sections create obligations to protect/compensate for losses
+   - "Termination" sections describe how and when the agreement can end
+   - Don't match standards to sections serving different purposes, even if similar words appear
 
 DETECTION ALGORITHM:
-1. Search the contract for clauses related to "{standard}".
-   - CRITICAL: Match based on CLAUSE CONTENT and SEMANTIC PURPOSE, not section title keywords or word overlap.
-   - A section titled "Miscellaneous" or "General Provisions" may contain many different clause types.
-   - A section titled "Termination" should NOT match "Representations and Warranties" unless the actual clause content about representations/warranties is in that section.
+1. STEP 1 - SCAN FOR SECTION TITLE MATCHES FIRST:
+   - Before analyzing content, scan through all section headings in the contract
+   - Look for any section whose title/heading closely matches "{standard}"
+   - If you find a title match (e.g., searching for "Independent Contractor" and finding a section titled "Independent Contractors: No Agency"), START YOUR ANALYSIS THERE
+   - This section should be your primary candidate unless it clearly doesn't address the topic
+
+2. STEP 2 - ANALYZE CONTENT IF NO CLEAR TITLE MATCH:
+   - If no section title matches, then search based on clause content and semantic purpose
+   - Match based on what the section is TRYING TO ACCOMPLISH, not just word overlap
+   - A section titled "Miscellaneous" or "General Provisions" may contain many different clause types - look for the one that matches the purpose of "{standard}"
    
-   SPECIFIC STANDARD DEFINITIONS:
-   - "Representations and Warranties": Look for AFFIRMATIVE statements of fact, assurances, or guarantees intended to be relied upon by the other party, such as:
-     * "Party A represents and warrants that..." or "Party A warrants and represents that..."
-     * Followed by factual assertions like: "it has authority to enter this agreement", "it is duly organized", "it has necessary licenses", "the signatories are authorized agents"
-     * These must be STATEMENTS OF FACT about status, authority, or capabilities that are TRUE AT THE TIME OF SIGNING
-     * The section must function as or be labeled as a Representations and Warranties clause
-     * DO NOT match: warranty disclaimers ("making no warranty", "no guarantee or warranty"), limitation of liability clauses, or indemnification language
-     * DO NOT match: performance warranties ("warrants its work will be of good quality" - this is a service obligation, not a factual representation)
-     * DO NOT match: operational statements, service descriptions, or acknowledgments that do not express factual assertions to be relied upon
-     * DO NOT match: clauses that talk ABOUT warranties in general terms without making specific affirmative representations
-     * CORRECT match example: "Each party warrants and represents to the other that the signatories below are agents..." (factual assertion about authority)
-     * INCORRECT match example: "is making no guarantee or warranty" (this is a disclaimer, not a representation)
-     * INCORRECT match example: "Security Reconnaissance Team Inc is making no guarantee or warranty-either expressed or implied-that the services will absolutely avert any loss" (service performance disclaimer, not a factual representation)
+   SPECIFIC STANDARD DEFINITIONS AND COMMON FALSE MATCHES:
    
-   - "Indemnification": Look for phrases like "shall indemnify", "hold harmless", "defend and indemnify", "indemnify and hold harmless". This is about one party protecting/compensating the other for losses. Note: A clause can mention "indemnify" within a termination or other section, but that doesn't make it THE indemnification clause - look for the primary, dedicated indemnification provision.
+   - "Representations and Warranties": 
+     * PURPOSE: Parties making factual statements about their authority, status, and capacity at time of signing
+     * Look for affirmative statements where parties declare facts about themselves to be relied upon
+     * Common false match: Finding this in warranty disclaimers or limitation of liability language that contains the word "warranty"
+     * Common false match: Performance obligations about service quality
+   
+   - "Independent Contractor": 
+     * PURPOSE: Establishing the nature of the business relationship (contractor vs. employee, no agency created)
+     * Typically addresses whether parties are independent contractors, not creating employment or agency relationships
+     * Common false match: Representations and Warranties sections that mention "authorized representatives" for signing purposes
+     * Common false match: Sections that use the word "representative" in other contexts
+   
+   - "Indemnification": 
+     * PURPOSE: One party protecting/compensating the other for losses, claims, or damages
+     * Look for obligations to "indemnify", "hold harmless", "defend", or compensate for losses
+     * Common false match: Passing mentions of indemnity within termination or other sections - look for the dedicated indemnification provision
+   
+   - "Standard of Care":
+     * PURPOSE: Establishing the level of quality, skill, or professionalism required in performance
+     * Look for references to industry standards, professional standards, workmanlike manner, or similar quality benchmarks
+     * Common false match: General language about quality that doesn't establish a specific standard of care
+   
+   - "Limitation of Liability":
+     * PURPOSE: Capping or excluding certain types of damages or liability
+     * Look for liability caps, exclusions of consequential damages, "shall not be liable" language
+     * Common false match: General warranty disclaimers that mention warranties but don't specifically limit liability
+   
+   - "Confidentiality":
+     * PURPOSE: Protecting confidential or proprietary information from disclosure
+     * Look for obligations to maintain confidentiality, non-disclosure requirements, handling of proprietary information
+     * Common false match: General references to information sharing that don't create confidentiality obligations
    
    - "Limitation of Liability": Look for phrases like "limitation of liability", "shall not be liable", "maximum liability", "in no event shall", "liability cap", "excluding consequential damages".
    
@@ -128,17 +165,27 @@ BEFORE RESPONDING, VERIFY (MANDATORY CHECKS):
 - The "excerpt" is copied word-for-word from the contract.
 - The "location" is copied word-for-word from a single line in the contract and exists in the contract text.
 - You did not invent or infer any section numbers or headings.
+
+- MOST CRITICAL: Did you find a section whose TITLE/HEADING matches "{standard}"?
+  * If YES: Did you analyze that section first? Is there a strong reason to choose a different section instead?
+  * If NO: Did you thoroughly scan all section headings before analyzing content?
+  * Title-matched sections should almost always be chosen unless they clearly don't address the topic
+
 - CRITICAL: The PRIMARY PURPOSE of the section matches "{standard}" - not just keyword overlap or tangential mentions.
-- Re-read the excerpt and verify it contains the KEY LEGAL PHRASES for "{standard}" as defined in the SPECIFIC STANDARD DEFINITIONS above.
 - Ask yourself: "Is this section DEDICATED to {standard}, or does it just happen to mention related words?"
-- If searching for "Representations and Warranties":
-  * Verify the excerpt contains AFFIRMATIVE FACTUAL STATEMENTS like "Party X represents and warrants that..." followed by facts about authority, organization, or capacity
-  * Verify these are statements of fact TRUE AT TIME OF SIGNING, not performance obligations or service descriptions
-  * "making no warranty" or "no guarantee or warranty" are WARRANTY DISCLAIMERS (part of Limitation of Liability), NOT Representations and Warranties
-  * Simply mentioning the words "warranty", "warrants", "acknowledges", or "agrees" does NOT mean you found the Representations and Warranties clause
-  * Performance language like "warrants the services will..." is NOT a representation - it's a service obligation
-- If multiple sections contain related language, choose the STRONGEST SEMANTIC MATCH that serves as the PRIMARY, DEDICATED provision for "{standard}"
-- If no section truly functions as a dedicated "{standard}" clause, set found=false rather than forcing a weak match
+- Ask yourself: "Does this section serve the same PURPOSE as {standard}, or is it doing something else?"
+
+- Examples of common false matches to AVOID:
+  * Finding "Independent Contractor" in a Representations and Warranties section just because it mentions "authorized representatives"
+  * Finding "Standard of Care" in general quality language that doesn't establish a professional standard
+  * Finding "Representations and Warranties" in warranty disclaimers or limitation of liability sections
+  * Finding any standard in a section that just happens to use similar vocabulary but serves a different legal purpose
+
+- If multiple sections contain related language, strongly prefer:
+  1st: Section with matching title
+  2nd: Section whose PRIMARY PURPOSE matches the standard
+  3rd: If neither exists, set found=false rather than forcing a weak match
+
 - The final output is valid JSON and nothing else.
 
 CONTRACT TEXT:

@@ -101,7 +101,7 @@ class SharePointService:
             print(f"Error getting site ID: {str(e)}")
             raise
     
-    def upload_contract(self, file_content, file_name, submitter_name, contract_name, submitter_email, business_approver_email, date_requested, business_terms, additional_notes):
+    def upload_contract(self, file_content, file_name, submitter_name, contract_name, submitter_email, business_approver_email, date_requested, contract_type, business_terms, additional_notes):
         """
         Upload a contract file to SharePoint ContractFiles library and create metadata record
         
@@ -113,6 +113,7 @@ class SharePointService:
             submitter_email (str): Email of submitter
             business_approver_email (str): Business approver email
             date_requested (str): Date requested
+            contract_type (str): Type of contract
             business_terms (list): List of selected business terms
             additional_notes (str): Additional notes
             
@@ -207,6 +208,7 @@ class SharePointService:
                     submitter_email=submitter_email,
                     business_approver_email=business_approver_email,
                     date_requested=date_requested,
+                    contract_type=contract_type,
                     business_terms=business_terms,
                     additional_notes=additional_notes,
                     document_url=document_url,
@@ -342,7 +344,7 @@ class SharePointService:
             return False
     
     def _create_contract_metadata(self, contract_id, contract_name, submitter_name, submitter_email, 
-                                business_approver_email, date_requested, business_terms, 
+                                business_approver_email, date_requested, contract_type, business_terms, 
                                 additional_notes, document_url, file_name):
         """Create a record in the 'Uploaded Contracts' SharePoint list"""
         try:
@@ -394,6 +396,7 @@ class SharePointService:
                     'SubmitterEmail': submitter_email,
                     'DateSubmitted': current_datetime,
                     'DateRequested': date_requested + 'T00:00:00Z' if date_requested else current_datetime,
+                    'ContractType': contract_type,  # Choice field for contract type
                     'AdditionalNotes': additional_notes or None,  # Use None instead of empty string
                     'BusinessApproverEmail': business_approver_email,
                     'BusinessTerms': business_terms_array,  # Array for multi-select choice field
@@ -690,6 +693,7 @@ class SharePointService:
                         'submitter_name': fields.get('SubmitterName', 'Unknown'),  # Corrected field name
                         'submitter_email': fields.get('SubmitterEmail', ''),
                         'business_approver_email': fields.get('BusinessApproverEmail', ''),
+                        'contract_type': fields.get('ContractType', ''),
                         'date_submitted': fields.get('DateSubmitted', '')[:10] if fields.get('DateSubmitted') else 'Unknown',
                         'date_requested': fields.get('DateRequested', '')[:10] if fields.get('DateRequested') else 'Unknown',
                         'status': fields.get('Status', 'SUBMITTED'),
