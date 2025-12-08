@@ -172,8 +172,8 @@
         </label>
         <select id="standardTypeDropdown" 
                 style="width: 300px; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 0.95rem; background: white; cursor: pointer; font-weight: 500;">
-          <option value="default" selected>Default Standards (19)</option>
-          <option value="type1">Type 1 - Placeholder</option>
+          <option value="default" selected>Default Standards ({{ preferred_standards|length }})</option>
+          <option value="type1">Type 1 - Security Standards ({{ security_standards|length if security_standards else 0 }})</option>
           <option value="type2">Type 2 - Placeholder</option>
           <option value="type3">Type 3 - Placeholder</option>
         </select>
@@ -237,20 +237,32 @@
       <!-- Type 1 Standards Section (Hidden by default) -->
       <div id="type1-standards-section" class="standards-selection standard-type-section" style="margin: 10px 0; display: none;">
         <h3 style="color: #495057; margin-bottom: 10px; font-weight: 600; font-size: 1.1rem;">
-          Type 1 Standards (Placeholder)
+          Type 1 - Security Standards
+          <button type="button" onclick="selectAllType1Standards()" class="select-all-btn-immediate"
+            style="margin-left: 15px !important; padding: 5px 12px !important; background: var(--peakmade-magenta) !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 0.8rem !important; cursor: pointer !important; font-weight: 600 !important; text-transform: uppercase !important;">
+            SELECT ALL
+          </button>
+          <button type="button" onclick="deselectAllType1Standards()" class="deselect-all-btn-immediate"
+            style="margin-left: 8px !important; padding: 5px 12px !important; background: #6c757d !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 0.8rem !important; cursor: pointer !important; font-weight: 600 !important; text-transform: uppercase !important;">
+            DESELECT ALL
+          </button>
         </h3>
         <div class="standards-container"
           style="border: 2px solid #e9ecef; border-radius: 8px; padding: 12px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
           <div class="standards-grid"
             style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
-              <input type="checkbox" name="standards" value="Type 1 - Standard A" style="margin-right: 8px; transform: scale(1.1);">
-              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 1 - Standard A</span>
-            </label>
-            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
-              <input type="checkbox" name="standards" value="Type 1 - Standard B" style="margin-right: 8px; transform: scale(1.1);">
-              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 1 - Standard B</span>
-            </label>
+            {% if security_standards %}
+              {% for item in security_standards %}
+              <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
+                <input type="checkbox" name="standards" value="{{ item.standard }}" checked class="type1-checkbox" style="margin-right: 8px; transform: scale(1.1);">
+                <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">{{ item.standard }}</span>
+              </label>
+              {% endfor %}
+            {% else %}
+              <div style="grid-column: 1 / -1; text-align: center; color: #6c757d; padding: 20px;">
+                No security standards available
+              </div>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -578,6 +590,19 @@ function deselectAllStandards() {
   console.log('Deselecting all standards');
   const allCheckboxes = document.querySelectorAll('input[name="standards"]');
   allCheckboxes.forEach(cb => cb.checked = false);
+}
+
+// Type 1 (Security) Standards Select All / Deselect All
+function selectAllType1Standards() {
+  console.log('Selecting all Type 1 standards');
+  const type1Checkboxes = document.querySelectorAll('#type1-standards-section input[name="standards"]');
+  type1Checkboxes.forEach(cb => cb.checked = true);
+}
+
+function deselectAllType1Standards() {
+  console.log('Deselecting all Type 1 standards');
+  const type1Checkboxes = document.querySelectorAll('#type1-standards-section input[name="standards"]');
+  type1Checkboxes.forEach(cb => cb.checked = false);
 }
 
 // Custom standard functionality

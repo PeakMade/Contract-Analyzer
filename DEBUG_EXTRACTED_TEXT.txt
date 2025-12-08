@@ -1,192 +1,97 @@
-FILE: tmpbn6qd6ii.docx
+FILE: tmp7omitloq.docx
 ======================================================================
 
 EXTRACTION STATS:
-  Total paragraphs: 61
-  Numbered paragraphs: 54
-  Total characters: 24150
+  Total paragraphs: 31
+  Numbered paragraphs: 13
+  Total characters: 5883
 
 FIRST 3000 CHARACTERS:
 ======================================================================
-Authorized Phonesuite® ConnectWare Hospitality™
-Partner Program Agreement
+PARTERNSHIP AGREEMENT
 
-This Partner Program Agreement (this “Agreement”) is entered into as of _____________________ (the “Effective Date”) between Phonesuite Unify, LLC (“Phonesuite”) and the entity named below (“Partner”).
+This AGREEMENT is made and entered into this 5th day of August 2024, between Hotel Internet Services, LLC (Herein known as HIS), a Delaware corporation, having principal offices at 50 S. Belcher Rd. suite 116 Clearwater FL 33765, AND: Redpoint Connect, LLC (“Partner”), a Delaware corporation having principal offices at 2970 Clairmont Rd #310, Atlanta, GA 30329.
 
-Whereas, Phonesuite provides hospitality communication solutions (collectively the “Phonesuite Service”); and
+WITNESSETH
 
-Whereas, Phonesuite and Partner wish to establish a relationship regarding joint marketing programs and other opportunities for their mutual benefit. 
+WHEREAS, HIS is engaged in providing and/or Internet Systems, BeyondTV VOD, IPTV & Streaming Systems, monitoring, support services and maintenance.
 
-IN WITNESS WHEREOF, the parties agree as follows:
+WHEREAS, The Partner has existing relationships and or prospects that have a need for HIS’ products and services and wishes to refer them to HIS.
 
-1. Appointment of Partner. 
+WHEREAS, The parties agree to perform under the terms and conditions contained herein, for a period commencing on the date above and expiring on such date as the agreement is terminated in accordance with Paragraph six (V1), herein:
 
-1.1 Partner Relationship. The parties will perform the services described in this document and the applicable appendix on a non-exclusive basis. Nothing in this Agreement will prohibit either party from entering agreements with third parties for any purpose. Each party will pay its own costs and expenses for all activities conducted pursuant to this Agreement. 
+NOW THEREFORE, In Consideration of the mutual covenants and agreements contained herein, HIS and The Partner agree as follows:
 
-1.2 Support. Unless stated otherwise in an applicable appendix, each party shall be solely responsible for providing technical application support to its own customers. 
+1. The services to be rendered hereunder by The Partner include consulting with HIS from time to time, preparing comprehensive selling strategies for the sale of HIS Products and make appointments with business customers to demonstrate the products, assist in preparing sales proposals and purchasing decisions resulting from such events. All sales are to be offered, proposed and made based on HIS published prices.
 
-1.3 Training; Installation.  If applicable to Partner, Partner’s personnel may be required to attend certain training sessions regarding the Phonesuite Service and failure to do so will be considered a material breach of this Agreement. In the event installation of Phonesuite hardware is applicable to Partner, Partner agrees that such installations shall be performed by qualified technicians who have undergone training by Phonesuite. Partner is solely responsible for any installations it performs pursuant to this Agreement. 
+2. The parties expressly intend and agree that The Partner is an independent contractor, and retains sole and absolute discretion, control and judgement in the manner and means of carrying out his assignments. No representations made by The Partner shall bind or commit HIS in any way, nor shall The Partner infer in any way that he/she is authorized to make any representations on behalf of HIS.
 
-2. License Grant. Subject to Partner’s compliance with this Agreement:
+3. During the term of this agreement, HIS shall pay The Partner as described in Schedule “A”. Upon acceptance by HIS of said contract, HIS shall pay The Partner no later than thirty (30) days after the invoice is paid by the property. The Partner acknowledges and agrees that no payment will be paid until HIS receives payment on property invoice.
 
-2.1 Promotion of Phonesuite Service. During the term of this Agreement Phonesuite grants to Partner a nonexclusive, nontransferable, limited license to demonstrate, market and promote the Phonesuite Service to potential customers of the Phonesuite service (“Customers”).
-
-2.2 Acceptable Use. Partner shall not, nor shall it permit any third party to: (a) cause or permit the reverse engineering, disassembly, or decompilation of any portion of the Phonesuite Service; (b) remove any copyright notices or other proprietary notices or restrictions from the Phonesuite Service; or (c) create any derivative works of the Phonesuite Service.
-
-2.3 Phonesuite reserves the right to make changes to or discontinue the Phonesuite Service at any time.  
-
-3. Marketing Activities.
-
-3.1 Materials. On request, each party will furnish to the other party one electronic copy of technical, advertising and marketing information and literature concerning its products and services, in English only and as available (the “Marketing Materials”). Each party agrees to: (a) conduct its marketing and promotion activities in a manner that reflects favorably at all times on the other party’s business and products; (b) avoid deceptive, misleading or unethical 
+4. Confidentiality & Non-Compete. The Partner may have access to certain information, the ownership and CONFIDENTIAL status of which is proprietary to HIS including but not limited to trade secrets, business plans, distribution process, R&D, technical information, customer lists, pricing and other information designated by HIS as Confidential. The Partner agrees to exercise the highest degree of care in safeguarding such confidential information against disclosure, loss or theft and takes all necessary steps to maintain such Confidentiality. The parties explicitly intend this provision to survive the termination of the agreement. The Partners Services Information Material and Pricing is the Property of HIS and shall not be shared with any other persons outside of HIS
 
 ======================================================================
-FULL TEXT (24150 chars):
+FULL TEXT (5883 chars):
 ======================================================================
 
-Authorized Phonesuite® ConnectWare Hospitality™
-Partner Program Agreement
+PARTERNSHIP AGREEMENT
 
-This Partner Program Agreement (this “Agreement”) is entered into as of _____________________ (the “Effective Date”) between Phonesuite Unify, LLC (“Phonesuite”) and the entity named below (“Partner”).
+This AGREEMENT is made and entered into this 5th day of August 2024, between Hotel Internet Services, LLC (Herein known as HIS), a Delaware corporation, having principal offices at 50 S. Belcher Rd. suite 116 Clearwater FL 33765, AND: Redpoint Connect, LLC (“Partner”), a Delaware corporation having principal offices at 2970 Clairmont Rd #310, Atlanta, GA 30329.
 
-Whereas, Phonesuite provides hospitality communication solutions (collectively the “Phonesuite Service”); and
+WITNESSETH
 
-Whereas, Phonesuite and Partner wish to establish a relationship regarding joint marketing programs and other opportunities for their mutual benefit. 
+WHEREAS, HIS is engaged in providing and/or Internet Systems, BeyondTV VOD, IPTV & Streaming Systems, monitoring, support services and maintenance.
 
-IN WITNESS WHEREOF, the parties agree as follows:
+WHEREAS, The Partner has existing relationships and or prospects that have a need for HIS’ products and services and wishes to refer them to HIS.
 
-1. Appointment of Partner. 
+WHEREAS, The parties agree to perform under the terms and conditions contained herein, for a period commencing on the date above and expiring on such date as the agreement is terminated in accordance with Paragraph six (V1), herein:
 
-1.1 Partner Relationship. The parties will perform the services described in this document and the applicable appendix on a non-exclusive basis. Nothing in this Agreement will prohibit either party from entering agreements with third parties for any purpose. Each party will pay its own costs and expenses for all activities conducted pursuant to this Agreement. 
+NOW THEREFORE, In Consideration of the mutual covenants and agreements contained herein, HIS and The Partner agree as follows:
 
-1.2 Support. Unless stated otherwise in an applicable appendix, each party shall be solely responsible for providing technical application support to its own customers. 
+1. The services to be rendered hereunder by The Partner include consulting with HIS from time to time, preparing comprehensive selling strategies for the sale of HIS Products and make appointments with business customers to demonstrate the products, assist in preparing sales proposals and purchasing decisions resulting from such events. All sales are to be offered, proposed and made based on HIS published prices.
 
-1.3 Training; Installation.  If applicable to Partner, Partner’s personnel may be required to attend certain training sessions regarding the Phonesuite Service and failure to do so will be considered a material breach of this Agreement. In the event installation of Phonesuite hardware is applicable to Partner, Partner agrees that such installations shall be performed by qualified technicians who have undergone training by Phonesuite. Partner is solely responsible for any installations it performs pursuant to this Agreement. 
+2. The parties expressly intend and agree that The Partner is an independent contractor, and retains sole and absolute discretion, control and judgement in the manner and means of carrying out his assignments. No representations made by The Partner shall bind or commit HIS in any way, nor shall The Partner infer in any way that he/she is authorized to make any representations on behalf of HIS.
 
-2. License Grant. Subject to Partner’s compliance with this Agreement:
+3. During the term of this agreement, HIS shall pay The Partner as described in Schedule “A”. Upon acceptance by HIS of said contract, HIS shall pay The Partner no later than thirty (30) days after the invoice is paid by the property. The Partner acknowledges and agrees that no payment will be paid until HIS receives payment on property invoice.
 
-2.1 Promotion of Phonesuite Service. During the term of this Agreement Phonesuite grants to Partner a nonexclusive, nontransferable, limited license to demonstrate, market and promote the Phonesuite Service to potential customers of the Phonesuite service (“Customers”).
+4. Confidentiality & Non-Compete. The Partner may have access to certain information, the ownership and CONFIDENTIAL status of which is proprietary to HIS including but not limited to trade secrets, business plans, distribution process, R&D, technical information, customer lists, pricing and other information designated by HIS as Confidential. The Partner agrees to exercise the highest degree of care in safeguarding such confidential information against disclosure, loss or theft and takes all necessary steps to maintain such Confidentiality. The parties explicitly intend this provision to survive the termination of the agreement. The Partners Services Information Material and Pricing is the Property of HIS and shall not be shared with any other persons outside of HIS except with written approval of HIS.
 
-2.2 Acceptable Use. Partner shall not, nor shall it permit any third party to: (a) cause or permit the reverse engineering, disassembly, or decompilation of any portion of the Phonesuite Service; (b) remove any copyright notices or other proprietary notices or restrictions from the Phonesuite Service; or (c) create any derivative works of the Phonesuite Service.
+5. This agreement shall commence on the date herein and remain in effect unless terminated by either party upon thirty (30) days written notice. Should this agreement be terminated by either party, The Partner shall be entitled to payment for the duration of the term of contract for any customers referred to HIS.
 
-2.3 Phonesuite reserves the right to make changes to or discontinue the Phonesuite Service at any time.  
+6. Neither this agreement nor the rights, payments or benefits of this agreement shall be assignable (not assignable) by The Partner without the expressed written consent of HIS.
 
-3. Marketing Activities.
+7. In the event of a dispute arising out of this agreement, the parties waive their rights to file lawsuits for trial, and agree that any such disputes shall be resolved by binding arbitration, under the rules of the American Arbitration Association and with jurisdiction in Los Angeles, CA. The prevailing party shall be entitled to recover all expenses, fees and costs incurred in the Arbitration.
 
-3.1 Materials. On request, each party will furnish to the other party one electronic copy of technical, advertising and marketing information and literature concerning its products and services, in English only and as available (the “Marketing Materials”). Each party agrees to: (a) conduct its marketing and promotion activities in a manner that reflects favorably at all times on the other party’s business and products; (b) avoid deceptive, misleading or unethical practices that are or might be detrimental to the other party, its customers or the public; (c) make no express or implied representations, warranties or guarantees to current or prospective customers of the other party or any third party other than those stated in writing in material provided by the other party; (d) not publish or use (or cooperate in the publication or use of) any written or printed materials about the Phonesuite Service or Partner’s business not provided in the Marketing Materials, without the other party’s prior written consent, or any misleading or deceptive material; and (e) not modify any of the Marketing Materials without the other party’s prior written consent. 
+8. Any provision of the agreement which may be deemed illegal, invalid or unenforceable shall in no way invalidate any other provisions, all of which shall remain in full force and effect.
 
-3.2 Branding. Each party will include appropriate attribution of the Phonesuite Service or Partner’s business to the other party and any slogan and logo provided by the other party in advertising and marketing materials, presentations, web sites and collateral with respect to the Phonesuite Service and specifically, on each page of such web sites that mention the Phonesuite Service or Partner’s business.
+9. All notices or communications required hereunder shall be in writing, sent postage paid, to the respective party at the address set forth herein.
 
-3.3 Publicity. Each party will allow the other party to review any announcements, press releases, marketing materials and other materials it creates that refer to the other party before such materials are displayed or released to the public or the press. Neither party will display or release such materials to the public or press without the other party’s prior written approval, which approval shall not be unreasonably withheld or delayed.
+10. Each party shall indemnify and hold harmless the other from liabilities, claims, demands, costs, attorney’s fees, judgments or any cause of action arising out of or in connection with negligence or willful misconduct of that party’s employee. Neither party shall be liable for delays in performing, or failure to perform under this agreement due to causes beyond the control of the party including but not limited to acts of God, fires, floods, strikes, war or intervention by any third party or government authority.
 
-3.4 Use of Marks. Each party grants to the other party a limited, non-sublicensable, non-transferable (except as otherwise set forth herein) royalty-free non-exclusive right and license during the term of this Agreement to use the granting party’s trademarks solely as part of the joint sales and marketing efforts contemplated herein.
+Each party hereto warrants that it has full authority to enter into this agreement and that this agreement is not in conflict with any other agreement or contract. This agreement contains the entire agreement between the parties relating to the subject matter herein, and may not be amended except in writing and signed by both parties and their authorized representative.
 
-3.5 Ownership of Marks. Each party acknowledges and agrees that it has no right, title or interest in the other party’s marks, except the limited use rights provided herein or as otherwise provided in writing by the parties, and that nothing in this Agreement shall be construed as an assignment or grant of any right, title or interest in the other party’s marks. All uses of marks owned by one party and goodwill created therein shall inure to the benefit of the party owning the marks. Further, each party agrees to promptly notify the other party of any conflicting uses of or any acts of infringement or unfair competition involving the other party’s marks by unauthorized persons of which the party has knowledge.
+IN WITNESS WHEREOF;
 
-4. Intellectual Property Rights.
+Hotel Internet Services, LLC (MDU Internet Services) Signed By: 	 Print Name: Gary Patrick
 
-4.1 As used herein, “Intellectual Property” is defined as any documentation, training materials, designs, discoveries, feedback, inventions, know-how, techniques, fixes, patches, work-arounds, upgrades, updates, customizations, modifications, enhancements or derivative works of the Phonesuite Service or Partner’s business. 
+Title: CEO Date: 9/25/2024
 
-4.2 Phonesuite Software and Phonesuite Intellectual Property. Phonesuite owns all right, title and interest in and to the Phonesuite Service and Phonesuite Intellectual Property. Partner is granted no title or ownership rights in any Phonesuite Intellectual Property or rights in and to the Phonesuite Service. Partner shall not remove, alter, or cover any copyright notices or other proprietary rights notices placed or embedded by Phonesuite on or in the Phonesuite Service. 
+The Partner: Redpoint Connect, LLC
 
-4.3 Partner Intellectual Property. Partner owns all right, title and interest in and to Partner’s business and Partner Intellectual Property. Phonesuite is granted no title or ownership rights in any Partner Intellectual Property or rights in and to Partner’s business. Phonesuite shall not remove, alter, or cover any copyright notices or other proprietary rights notices placed or embedded by Partner on or in Partner’s business.
+Signed By: 	
 
-4.4 Notification. Each party shall promptly notify the other party in writing upon its discovery of any unauthorized use or infringement of the software, services or Intellectual Property rights of the other party. A party shall have the sole and exclusive right to bring an infringement action or proceeding or to take other measures to enforce its intellectual property rights against a third party, and, in the event that a party brings such an action or proceeding or takes such other measures, the other party shall cooperate and provide full information and assistance in connection with any such action, or proceeding or other measures, provided that all expenses of such action or measures shall be borne by the party initiating the action and all damages which may be awarded or agreed upon in settlement of such action or measures shall accrue only to the party initiating the action.
+Print Name: Jim Behner
 
-5. Confidentiality. 
+Title: _Vice President of Operations
 
-5.1 Coordination with NDA. If the parties have entered into a separate mutual non-disclosure agreement (“NDA”), then as between the NDA and this Section 5, the provisions that afford the disclosing party the greatest protection shall apply.
+Date: 9/25/2024
 
-5.2 Confidential Information. Subject to the limitations set forth in Section 5.3, all information disclosed by one party to the other party during the term of this Agreement that is identified in writing at the time of disclosure as confidential or that reasonably should be understood to be confidential given the nature of the information and the circumstances of the disclosure, whether in oral, written, graphic or electronic form, shall be deemed to be “Confidential Information”. The existence and terms of this Agreement are Confidential Information of both parties. 
+Partner Agreement ATTACHMENT A – Payments
 
-5.3 Exceptions. Information will not be considered Confidential Information if the receiving party can establish by documentary evidence that the information is or was:  publicly available through no act or omission of the receiving party;  in the receiving party’s lawful possession prior to disclosure by the disclosing party and not obtained either directly or indirectly from the disclosing party;  lawfully disclosed to the receiving party by a third party without restriction on disclosure; or  independently developed by the receiving party without use of or access to the disclosing party’s Confidential Information.
+Payment Terms
 
-5.4 Nondisclosure. Each party covenants that it will not disclose any Confidential Information of the other party to any person or entity except:  to agents of the receiving party who have a need to know such information and who are subject to confidentiality agreements with the receiving party at least as protective of the disclosing party’s Confidential Information as this Agreement, or  pursuant to the terms of a valid and effective subpoena or court order, provided that the receiving party immediately notifies the disclosing party (to the extent permitted) of the existence, terms and circumstances surrounding such a request so that the disclosing party may seek appropriate protective action. 
+1. The Company agrees to pay the Partner $3.00 per bed/unit for any deal that is closed together.
 
-5.5 Survival. All of the receiving party’s obligations under this Article 5 will survive the termination of this Agreement. Neither party may use the other party's Confidential Information in any directly competitive manner or for any purpose other than to exercise its rights and comply with its obligations under this Agreement. 
+2. Payments will be made every month, until the end of the property’s contract, within thirty (30) days following the closing of a deal and upon receipt of an invoice from the Partner.
 
-5.6 Return. On the disclosing party’s request, the receiving party must return or destroy on demand all Confidential Information of the disclosing party which has been supplied to or acquired by the receiving party, other than: (a) records the receiving party has a separate legal right or obligation to retain; and (b) copies of Confidential Information created in the ordinary course of the receiving party’s business and retained in accordance with its internal document retention and information technology policies.
-
-6. Representations and Warranties.
-
-6.1 Authority. Each of Phonesuite and Partner represents and warrants that:  it has the full right, power and authority to enter into and fully perform this Agreement;  the person signing this Agreement on its behalf is a duly authorized representative of such party who has in fact been authorized to execute this Agreement;  its entry herein does not violate any other agreement by which it is bound; and  it is a legal entity in good standing in the jurisdiction of its formation.
-
-7. Term and Termination. 
-
-7.1 Term. This Agreement will commence on the Effective Date and will continue until terminated in accordance with this section. 
-
-7.2 Termination without Cause. Either party may terminate this Agreement for convenience by providing the other party with 30 days’ prior written notice. 
-
-7.3 Termination for Cause. Either party may terminate this Agreement: (a) immediately on written notice if the other party commits a non-remediable material breach; or (b) upon 30 days’ notice to the other party of a material breach if such breach remains uncured at the expiration of such period. 
-
-7.4 Effect of Termination. Following termination or expiration of this Agreement each party will cease promoting the software and services of the other party, cease identifying itself as a partner of the other party, and cease using the other party’s name, logo or other identifying information on its website, marketing materials and other communications to third parties, and (b) deliver to the other any property of the other in its possession or control relating to this Agreement, including Confidential Information as specified in section 5.6.
-
-8. Indemnification. 
-
-8.1 Partner’s Indemnification Obligations. Partner at its own expense will defend, indemnify and hold harmless Phonesuite, its affiliates, successors, assigns, members, shareholders, officers, directors and agents against all liabilities, obligations, losses, damages, fines, judgments, settlements, charges, interest, expenses (including reasonable attorneys’ and accountants’ fees and disbursements) resulting from claims, demands, suits, actions or proceedings made or brought by third parties alleging that: (a) Partner or its officers, directors, employees or agents offered warranties or guarantees regarding the Phonesuite Service other than those provided in writing by Phonesuite, (b) any Partner product or service violates a third party’s intellectual property rights, or (c) any Partner product or service has infringed the rights of or otherwise caused harm to a third party, or violated applicable law. Phonesuite must give written notice of the claim to Partner; give Partner control of the defense and settlement of the claim (provided that Partner may not settle any claim unless it unconditionally releases Phonesuite of all liability); and provide to Partner, at Partner’s cost, all reasonable assistance.
-
-8.2 Phonesuite’s Indemnification Obligations. Phonesuite at its own expense will defend, indemnify and hold harmless Partner, its affiliates, successors, assigns, members, shareholders, officers, directors and agents against all liabilities, obligations, losses, damages, fines, judgments, settlements, charges, interest, expenses (including reasonable attorneys’ and accountants’ fees and disbursements) resulting from claims, demands, suits, actions or proceedings made or brought by third parties alleging that the Phonesuite Service violates a third party’s intellectual property rights. Partner must give written notice of the claim to Phonesuite; give Phonesuite control of the defense and settlement of the claim (provided that Phonesuite may not settle any claim unless it unconditionally releases Partner of all liability); and provide to Phonesuite, at Phonesuite’s cost, all reasonable assistance
-
-9. Limitation of Liability. 
-
-9.1 Indirect Damages. Except for claims against Partner arising out of or related to its misappropriation of Phonesuite’s intellectual property rights in the Service, neither party will be liable for any indirect, punitive, special, incidental or consequential damages arising out of this Agreement (including, without limitation, loss of business, revenue, profits, goodwill, use, data or other economic advantage) however they arise, whether in breach of contract, breach of warranty, or in tort, including negligence, and even if that party has previously been advised of, or could reasonably have foreseen, the possibility of such damages. Liability for damages will be limited and excluded, even if any exclusive remedy provided above fails of its essential purpose. 
-
-9.2 Direct Damages. Except for claims against Partner arising out of or related to its misappropriation of Phonesuite’s intellectual property rights in the Service, each party’s aggregate liability to the other for claims arising out of or relating to this Agreement, whether for breach or in tort, is limited to the total aggregate amount paid or payable by each party to the other during the 12-month period preceding the date of a claim.
-
-10. Special Terms.
-
-10.1 Nonsolicitation. During the term of this Agreement and for the 12 months immediately following the end thereof, the parties must not knowingly, directly or indirectly, solicit, influence, or entice, or attempt to solicit, influence, or entice any employee or consultant of the other party to cease that person’s relationship with such party. 
-
-10.2 Export Control. Partner acknowledges and agrees that the software associated with the Phonesuite Service (the “Software”) is subject to all applicable export control and economic sanctions laws and regulations, including, without limitation, those of the United States Government. Partner shall strictly comply with all applicable export control and economic sanctions laws and regulations related to the Software, including, without limitation, U.S. Export Administration Regulations, 15 C.F.R. Parts 730-774, the economic sanctions codified in 31 C.F.R. Part 500 et seq., and all licenses and authorizations issued under such laws and regulations. Partner shall fully cooperate with Phonesuite in securing any export licenses and authorizations required under applicable export control and economic sanctions laws and regulations. Partner agrees that it shall not, and shall cause its representatives, employees, agents, contractors and Partners to agree not to, export, re-export, divert, release, transfer, or disclose any such Software, or any direct product thereof, to any prohibited or restricted destination, end-use or end-user, except in accordance with all relevant export control and economic sanctions laws and regulations. Partner shall make its records available to Phonesuite upon reasonable request to permit Phonesuite to confirm Partner’s compliance with its obligations as set forth in this Section 4.1. 
-
-10.3 US Government Rights. This section is applicable only if Partner is a US government agency or a contractor to a US government agency. The Software, and any related documentation contain commercial computer software and documentation which are proprietary data belonging solely to Phonesuite and its licensors. Pursuant to DFARS 227.7202 or FAR 12.212, as applicable, the U.S. Government's right to use, reproduce or disclose the Software and any related documentation acquired under this Agreement is subject to the restrictions of this Agreement. The terms and conditions of this Agreement are fully applicable to the Government’s use and disclosure of the Software and any related documentation and shall supersede any conflicting terms or conditions. No license of any kind is granted in the case of acquisitions which contain or are subject to the clause FAR 52-227.19 COMMERCIAL COMPUTER SOFTWARE-RESTRICTED RIGHTS (JUNE 1987) or DFARS 252.227-7013 RIGHTS IN TECHNICAL DATA AND COMPUTER SOFTWARE (OCT 1988) or any other clause which purports to grant to the government rights greater than, or additional to those, set forth in this Agreement. 
-
-10.4 Business Conduct. Partner will fully comply with all applicable laws and regulations in the exercise of its rights and performance of its obligations under this Agreement and shall not, under any circumstances, engage in any illegal or unethical business practices in relation thereto. Partner acknowledges that it is familiar with and understands the provisions of applicable anticorruption laws, including the U.S. Foreign Corrupt Practices Act (“the FCPA”) and the U.K. Bribery Act of 2010 (“UKBA”) and agrees to comply with their terms as well as any provisions of local law related thereto. Partner further understands the provisions relating to the FCPA and UKBA’s prohibitions regarding the payment or giving of anything of value. Partner agrees to not violate or knowingly let anyone violate the FCPA or UKBA, and agrees that no payment it makes will constitute a bribe, influence payment, kickback, rebate, or other payment that violates the FCPA, the UKBA, or any other applicable anticorruption or anti-bribery law.
-
-11. Miscellaneous.
-
-11.1 Independent Contractors; No Agency. The parties are and shall be independent contractors to one another, and nothing herein shall be deemed to cause this Agreement to create an agency, legal partnership or joint venture between the parties. Neither party shall have the authority to legally bind the other to any contract, warranty, proposal or other commitment or to incur any debt or create any liability on behalf of the other. Nothing in this Agreement shall be construed to create or establish an employer-employee between relationship either party and any employee or agent of the other party. Each party is responsible for the control and acts of its employees, representatives and agents. 
-
-11.2 Survival. The rights and obligations described in Sections 2.3, 3.5, 4, 5 and 7 - 9 shall survive any termination of this Agreement. 
-
-11.3 Assignment. Neither party may assign any of its rights or obligations hereunder, whether by operation of law or otherwise, without the prior written consent of the other party, which shall not be unreasonably withheld. Notwithstanding the foregoing, either party may assign this Agreement in its entirety without consent of the other party, in connection with a merger, acquisition, or sale of all or substantially all of its assets not involving a direct competitor of the other party. Any other purported assignment shall be void.
-
-11.4 Governing Law and Venue. This Agreement and any action related thereto will be governed and interpreted by and under the laws of the State of Colorado, without giving effect to any conflicts of laws principles that require the application of the law of a different state. Partner hereby expressly consents to the personal jurisdiction and venue in the state and federal courts in Denver, Colorado, for any action arising from or related to this Agreement. 
-
-11.5 Notices. Each party must deliver all notices or other communications required or permitted under this Agreement in writing to the other party at the address listed on the cover page or signature page to this Agreement (as applicable), by courier, by certified or registered mail (postage prepaid and return receipt requested), or by a nationally-recognized express mail service. Notice will be effective upon receipt or refusal of delivery. Each party may change its address for receipt of notice by giving notice of such change to the other party. 
-
-11.6 Severability. If any provision of this Agreement is adjudicated invalid or unenforceable, the remaining provisions will remain in effect and the Agreement will be amended to the minimum extent necessary to achieve, to the maximum extent possible, the same legal and commercial effect originally intended by the parties. 
-
-11.7 Waiver. No failure or delay by either party in exercising any right under this Agreement shall constitute a waiver of that right.
-
-11.8 Entire Agreement; Amendments. This Agreement, including all exhibits and addenda hereto, if any, constitutes the entire agreement and together with the NDA (if any) is the final, complete and exclusive agreement of the parties with respect to the subject matter hereof and supersedes and merges all prior discussions between the parties with respect to such subject matter. No modification of or amendment to this Agreement, or any waiver of any rights under this Agreement, will be effective unless in writing and signed by a duly authorized representative of Partner and Phonesuite.
-
-11.9 Counterparts. This Agreement may be executed by written or electronic signature and delivered in multiple counterparts, including facsimile, PDF, or other electronic means, all of which will constitute one and the same instrument and agreement.
-
- [SIGNATURES ON FOLLOWING PAGE]
-
-IN WITNESS WHEREOF, the parties have executed this Partner Program Agreement as of the Effective Date.
-
-Partner Information
-	Company Name:  	
-	Address:  	
-		
-	Contact Person:  	
-	Telephone:  	
-	Email:  	
-	Fax:  	
-Program Components (check all that apply)
-Agent Program
-Reseller Program 
-
-PHONESUITE UNIFY LLC
-________________________
-Signature
-________________________
-Print Name and Title
-
-
-PARTNER – ______________________
-________________________
-Signature
-________________________
-Print Name and Title
+3. The Partner shall provide detailed records of the number of beds included in each closed deal.

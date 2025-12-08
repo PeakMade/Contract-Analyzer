@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 # Import analysis services
 from app.services.sp_download import download_contract
 from app.services.text_extractor import extract_text
-from app.services.sp_preferred_standards import get_preferred_standards, get_preferred_standards_dict
+from app.services.sp_preferred_standards import get_preferred_standards, get_preferred_standards_dict, get_preferred_standards_by_category
 from app.services.analysis_orchestrator import analyze_contract as run_analysis
 from app.cache import analysis_cache
 
@@ -485,15 +485,17 @@ def contract_standards(contract_id):
             flash('You do not have access to this contract', 'error')
             return redirect(url_for('dashboard'))
         
-        # Get preferred standards from SharePoint
+        # Get preferred standards from SharePoint (categorized by security flag)
         print(f"Loading preferred standards from SharePoint...")
         try:
-            preferred_standards = get_preferred_standards()
-            print(f"Loaded {len(preferred_standards)} preferred standards")
-            if preferred_standards:
-                print(f"First standard example: {preferred_standards[0]}")
-            else:
-                print(f"WARNING: No standards loaded! Check SharePoint connection and list configuration.")
+            categorized_standards = get_preferred_standards_by_category()
+            default_standards = categorized_standards['default']
+            security_standards = categorized_standards['security']
+            print(f"Loaded {len(default_standards)} default standards and {len(security_standards)} security standards")
+            if default_standards:
+                print(f"First default standard example: {default_standards[0]}")
+            if security_standards:
+                print(f"First security standard example: {security_standards[0]}")
         except PermissionError as e:
             # Token expired - show session expiration message
             if 'SESSION_EXPIRED' in str(e):
@@ -506,7 +508,8 @@ def contract_standards(contract_id):
         return render_template('standards.html',
                              contract_id=contract_id,
                              contract_name=contract['name'],
-                             preferred_standards=preferred_standards)
+                             preferred_standards=default_standards,
+                             security_standards=security_standards)
         
     except Exception as e:
         print(f"Error in contract_standards: {str(e)}")

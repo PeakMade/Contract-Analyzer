@@ -128,15 +128,18 @@ def get_preferred_standards() -> list[dict]:
             # SharePoint columns: "Standard" and "Clause"
             standard_name = fields.get('Standard') or fields.get('Title')
             clause_text = fields.get('Clause') or fields.get('ClauseText')
+            # Extract Security column (Yes/No field)
+            is_security = fields.get('Security', False)
             
-            print(f"DEBUG sp_preferred_standards: standard_name={standard_name}, clause_length={len(clause_text) if clause_text else 0}")
+            print(f"DEBUG sp_preferred_standards: standard_name={standard_name}, clause_length={len(clause_text) if clause_text else 0}, is_security={is_security}")
             
             if standard_name and clause_text:
                 standards_list.append({
                     'standard': standard_name,
-                    'clause': clause_text
+                    'clause': clause_text,
+                    'is_security': is_security
                 })
-                logger.debug(f"Loaded preferred standard: {standard_name}")
+                logger.debug(f"Loaded preferred standard: {standard_name} (security={is_security})")
             else:
                 print(f"DEBUG sp_preferred_standards: SKIPPED - Missing data. Standard={bool(standard_name)}, Clause={bool(clause_text)}")
         
@@ -200,7 +203,8 @@ def _get_fallback_standards() -> list[dict]:
     return [
         {
             'standard': name,
-            'clause': f"[PLACEHOLDER: Please configure SharePoint 'Preferred Contract Terms' list to load actual clause text for {name}]"
+            'clause': f"[PLACEHOLDER: Please configure SharePoint 'Preferred Contract Terms' list to load actual clause text for {name}]",
+            'is_security': False
         }
         for name in fallback
     ]
@@ -215,3 +219,26 @@ def get_preferred_standards_dict() -> dict[str, str]:
     """
     standards_list = get_preferred_standards()
     return {item['standard']: item['clause'] for item in standards_list}
+
+
+def get_preferred_standards_by_category() -> dict:
+    """
+    Load preferred standards categorized by security flag.
+    
+    Returns:
+        Dictionary with 'default' and 'security' lists.
+    """
+    all_standards = get_preferred_standards()
+    
+    categorized = {
+        'default': [],
+        'security': []
+    }
+    
+    for standard in all_standards:
+        if standard.get('is_security', False):
+            categorized['security'].append(standard)
+        else:
+            categorized['default'].append(standard)
+    
+    return categorized
