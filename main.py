@@ -176,14 +176,37 @@ def submit_contract():
                 'redirect_url': url_for('index') + '?tab=dashboard'
             })
         else:
+            error_msg = upload_result.get("error", "Unknown error")
+            # Check if this is a token expiration error
+            if "expired" in error_msg.lower() or "unauthorized" in error_msg.lower() or "authentication" in error_msg.lower():
+                # Clear the session to force re-authentication
+                session.clear()
+                return jsonify({
+                    'success': False,
+                    'message': 'Your session has expired. Please log in again.',
+                    'auth_error': True
+                }), 401
+            
             return jsonify({
                 'success': False, 
-                'message': f'Failed to upload to SharePoint: {upload_result.get("error", "Unknown error")}'
+                'message': f'Failed to upload to SharePoint: {error_msg}'
             }), 500
             
     except Exception as e:
-        print(f"Error in submit_contract: {str(e)}")
-        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+        error_str = str(e)
+        print(f"Error in submit_contract: {error_str}")
+        
+        # Check if this is a token expiration error
+        if "expired" in error_str.lower() or "unauthorized" in error_str.lower() or "authentication" in error_str.lower():
+            # Clear the session to force re-authentication
+            session.clear()
+            return jsonify({
+                'success': False,
+                'message': 'Your session has expired. Please log in again.',
+                'auth_error': True
+            }), 401
+        
+        return jsonify({'success': False, 'message': f'Server error: {error_str}'}), 500
 
 @app.route('/test-sharepoint')
 def test_sharepoint():

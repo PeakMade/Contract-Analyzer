@@ -442,8 +442,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                // Check if we got redirected to login (response.url will show redirect destination)
+                if (response.url.includes('/auth/login') || response.redirected) {
+                    // Server redirected us to login, follow it
+                    window.location.href = response.url;
+                    return null;
+                }
+                
+                // Check for auth errors
+                if (response.status === 401 || response.status === 403) {
+                    // Unauthorized - redirect to login for re-auth
+                    window.location.href = '/auth/login';
+                    return null;
+                }
+                
+                return response.json();
+            })
             .then(data => {
+                if (!data) return; // Already redirecting to auth
+                
                 if (data.success) {
                     // No alert popup - success message will show in banner
                     contractForm.reset();
@@ -454,14 +472,26 @@ document.addEventListener('DOMContentLoaded', function() {
                         window.location.href = data.redirect_url;
                     }
                 } else {
-                    alert(`Error: ${data.message}`);
+                    // Check if error is related to authentication
+                    const errorMessage = (data.message || '').toLowerCase();
+                    const authErrors = ['token', 'expired', 'unauthorized', 'session', 'authentication', 'logged in', 'login'];
+                    const isAuthError = authErrors.some(term => errorMessage.includes(term));
+                    
+                    if (isAuthError) {
+                        // Auth error - redirect to login
+                        window.location.href = '/auth/login';
+                        return;
+                    } else {
+                        // Show other errors normally
+                        alert(`Error: ${data.message}`);
+                        submitBtn.innerHTML = originalHtml;
+                        submitBtn.disabled = false;
+                    }
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Fetch error:', error);
                 alert('An error occurred while uploading the contract. Please try again.');
-            })
-            .finally(() => {
                 submitBtn.innerHTML = originalHtml;
                 submitBtn.disabled = false;
             });
