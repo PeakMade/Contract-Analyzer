@@ -1,8 +1,9 @@
 from flask import Flask, render_template, session, request, jsonify, flash, redirect, url_for
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone as tz
 from pathlib import Path
 from dotenv import load_dotenv
+from flask_session import Session
 
 # Import analysis services
 from app.services.sp_download import download_contract
@@ -25,6 +26,63 @@ app = Flask(__name__, static_folder='app/static', template_folder='app/templates
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key')
 print(f"DEBUG: Flask app created")
 print(f"DEBUG: SECRET_KEY set: {bool(app.secret_key)}")
+
+# Configure Flask-Session for server-side filesystem storage
+# Azure App Service: Use /home/ for persistence across restarts
+# Local dev: Use ./flask_session
+session_dir_path = '/home/flask_session' if os.path.exists('/home') else './flask_session'
+
+app.config.update(
+    SESSION_TYPE='filesystem',
+    SESSION_FILE_DIR=session_dir_path,
+    SESSION_PERMANENT=True,
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+    SESSION_REFRESH_EACH_REQUEST=True,  # Sliding session: refresh on every request
+    SESSION_USE_SIGNER=False  # Disabled due to Flask-Session bytes/string bug with Python 3.14
+    # Note: SESSION_KEY_PREFIX removed - it prevents session file creation in some Flask-Session versions
+)
+
+# Initialize Flask-Session BEFORE ProxyFix
+Session(app)
+print(f"DEBUG: Flask-Session configured with filesystem storage at {session_dir_path}")
+print(f"DEBUG: Session interface type: {type(app.session_interface)}")
+print(f"DEBUG: Session interface class: {app.session_interface.__class__.__name__}")
+if hasattr(app.session_interface, 'cache_dir'):
+    print(f"DEBUG: Actual cache_dir: {app.session_interface.cache_dir}")
+
+# Safe cleanup of stale session files on startup
+# Only delete files older than session lifetime + 1 hour safety buffer
+# This prevents deleting active sessions and race conditions
+session_dir = Path(session_dir_path)
+if session_dir.exists() and session_dir.is_dir():
+    # Add 1 hour safety buffer to prevent deleting active sessions
+    session_lifetime = timedelta(hours=8)
+    safety_buffer = timedelta(hours=1)
+    cutoff_time = datetime.now(tz.utc) - session_lifetime - safety_buffer
+    
+    cleaned_count = 0
+    try:
+        for session_file in session_dir.glob('*'):
+            if session_file.is_file():
+                try:
+                    file_mtime = datetime.fromtimestamp(session_file.stat().st_mtime, tz=tz.utc)
+                    file_age_hours = (datetime.now(tz.utc) - file_mtime).total_seconds() / 3600
+                    print(f"DEBUG: Session file {session_file.name}: age={file_age_hours:.1f}h, cutoff=9h")
+                    
+                    if file_mtime < cutoff_time:
+                        session_file.unlink()
+                        cleaned_count += 1
+                        print(f"DEBUG: Deleted {session_file.name} (age: {file_age_hours:.1f} hours)")
+                except (OSError, ValueError) as e:
+                    # Skip files that can't be accessed or have invalid timestamps
+                    print(f"DEBUG: Skipped session file {session_file.name}: {e}")
+        
+        if cleaned_count > 0:
+            print(f"DEBUG: Cleaned up {cleaned_count} stale session files (>9 hours old)")
+        else:
+            print(f"DEBUG: No stale session files to clean up")
+    except Exception as e:
+        print(f"DEBUG: Session cleanup failed (non-critical): {e}")
 
 # Configure Flask for Azure App Service behind reverse proxy
 # ProxyFix ensures url_for() generates correct HTTPS URLs and handles proxy headers
@@ -91,7 +149,13 @@ def inject_auth():
 @app.route('/')
 @login_required
 def index():
-    print(f"\n=== DEBUG index() route called ===")
+    # Ensure access token is fresh
+    from app.auth.token_utils import ensure_fresh_access_token, AuthRequired
+    try:
+        ensure_fresh_access_token()
+    except AuthRequired:
+        flash('Your session has expired. Please log in again.', 'warning')
+        return redirect('/auth/login')
     
     # Log user access to app
     try:
@@ -108,6 +172,13 @@ def index():
 def submit_contract():
     """Handle contract submission and upload to SharePoint"""
     try:
+        # Ensure access token is fresh before making API calls
+        from app.auth.token_utils import ensure_fresh_access_token, AuthRequired
+        try:
+            ensure_fresh_access_token()
+        except AuthRequired:
+            return jsonify({'success': False, 'message': 'Authentication required. Please log in again.'}), 401
+        
         # Get form data
         submitter_name = request.form.get('submitterName')
         submitter_email = request.form.get('submitterEmail')

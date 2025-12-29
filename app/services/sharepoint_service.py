@@ -68,17 +68,33 @@ class SharePointService:
     def _ensure_valid_token(self):
         """Check if token is valid and refresh if needed (using UTC time)"""
         from datetime import datetime
+        from flask import session
+        from app.auth.token_utils import ensure_fresh_access_token, AuthRequired
         
-        # If token doesn't exist or is expired, get a new one (compare in UTC)
-        if self.token_expires_at is None or datetime.utcnow() >= self.token_expires_at:
-            print("Token expired or missing, refreshing...")
+        try:
+            # Use the new token refresh strategy that refreshes 5 minutes before expiry
+            ensure_fresh_access_token()
+            
+            # Update our instance with the refreshed token from session
+            if session.get('access_token'):
+                self.access_token = session['access_token']
+                
+                # Parse token expiration from session
+                if session.get('token_expires_at'):
+                    from datetime import datetime
+                    expires_at_str = session['token_expires_at']
+                    self.token_expires_at = datetime.fromisoformat(expires_at_str).replace(tzinfo=None)
+                    
+                    time_left = (self.token_expires_at - datetime.utcnow()).total_seconds() / 60
+                    print(f"Token valid, {time_left:.1f} minutes remaining")
+                    
+        except AuthRequired:
+            # Fall back to old behavior if session-based refresh fails
+            print("Token expired or missing, falling back to app-only auth...")
             self.access_token = self._get_access_token()
             # Site ID might also need refresh after token refresh
             if self.site_id is None:
                 self.site_id = self._get_site_id()
-        else:
-            time_left = (self.token_expires_at - datetime.utcnow()).total_seconds() / 60
-            print(f"Token still valid, {time_left:.1f} minutes remaining")
     
     def _get_site_id(self):
         """Get the SharePoint site ID"""

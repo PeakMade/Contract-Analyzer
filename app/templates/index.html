@@ -1219,6 +1219,45 @@ document.addEventListener('DOMContentLoaded', function() {
             showNotesModal(contractName, notes);
         }
     });
+    
+    // === TOKEN REFRESH KEEP-ALIVE ===
+    // Tracks user activity and pings server to refresh tokens before expiration
+    let lastActivity = Date.now();
+    const PING_INTERVAL = 10 * 60 * 1000;  // 10 minutes
+    const INACTIVITY_TIMEOUT = 15 * 60 * 1000;  // 15 minutes
+    
+    // Track user activity
+    ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+        document.addEventListener(event, () => {
+            lastActivity = Date.now();
+        }, { passive: true });
+    });
+    
+    // Periodic ping to keep session alive and refresh tokens
+    setInterval(async () => {
+        const timeSinceActivity = Date.now() - lastActivity;
+        
+        // Only ping if user has been active recently
+        if (timeSinceActivity < INACTIVITY_TIMEOUT) {
+            try {
+                const response = await fetch('/auth/ping', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+                
+                if (response.status === 401) {
+                    // Session expired, redirect to login
+                    console.log('Session expired, redirecting to login...');
+                    window.location.href = '/auth/login';
+                } else if (response.ok) {
+                    console.log('Token refreshed successfully');
+                }
+            } catch (error) {
+                console.error('Keep-alive ping failed:', error);
+            }
+        }
+    }, PING_INTERVAL);
 });
+
 </script>
 {% endblock %}

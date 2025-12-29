@@ -42,6 +42,7 @@ def login():
         print(f"DEBUG: Generated OAuth state token")
         
         # Create auth URL with all required scopes for file access
+        # Note: MSAL automatically adds offline_access - do NOT include it explicitly
         msal_app = get_msal_app()
         auth_url = msal_app.get_authorization_request_url(
             scopes=["User.Read", "Files.ReadWrite.All", "Sites.ReadWrite.All"],
@@ -105,7 +106,7 @@ def redirect_handler():
             return redirect('/')
         
         print(f"DEBUG: Exchanging code for token")
-        # Exchange code for token with all required scopes
+        # Exchange code for token - MSAL automatically includes offline_access for refresh token
         msal_app = get_msal_app()
         result = msal_app.acquire_token_by_authorization_code(
             code,
@@ -150,8 +151,9 @@ def redirect_handler():
             return redirect('/')
         
         print(f"DEBUG: Setting session data")
-        # Store minimal user information in session
+        # Store tokens and expiration (refresh_token enables silent renewal)
         session['access_token'] = result['access_token']
+        session['refresh_token'] = result.get('refresh_token')  # Will be None if offline_access not granted
         
         # Store token expiration with timezone-aware UTC datetime
         from datetime import datetime, timedelta, timezone as tz
@@ -159,6 +161,7 @@ def redirect_handler():
         token_expires_at = datetime.now(tz.utc) + timedelta(seconds=expires_in)
         session['token_expires_at'] = token_expires_at.isoformat()
         print(f"DEBUG: Token expires at: {token_expires_at} (in {expires_in} seconds)")
+        print(f"DEBUG: Refresh token available: {bool(result.get('refresh_token'))}")
         
         session['user_name'] = user_info.get('displayName', email.split('@')[0])
         session['user_email'] = email
@@ -213,11 +216,14 @@ def redirect_handler():
 
 @auth_bp.route('/logout')
 def logout():
-    """Logout user"""
+    """Logout user - only invalidates current user's session"""
     try:
         user_email = session.get('user_email', 'Unknown')
         logger.info(f"User {user_email} logging out")
         
+        # Flask-Session automatically handles session file deletion when session.clear() is called
+        # Do NOT manually delete session files or iterate through the session directory
+        # This ensures only the current user's session is invalidated
         session.clear()
         
         # Build proper Microsoft logout URL
@@ -225,7 +231,7 @@ def logout():
         post_logout_uri = url_for('index', _external=True)
         logout_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/logout?post_logout_redirect_uri={post_logout_uri}"
         
-        print(f"DEBUG: Logging out, redirecting to Microsoft logout")
+        print(f"DEBUG: User {user_email} logged out, redirecting to Microsoft logout")
         print(f"DEBUG: Post-logout URI: {post_logout_uri}")
         
         flash('You have been logged out successfully.', 'info')
@@ -236,3 +242,38 @@ def logout():
         print(f"DEBUG ERROR in logout: {str(e)}")
         session.clear()
         return redirect('/')
+
+@auth_bp.route('/ping')
+def ping():
+    """
+    Keep-alive endpoint for maintaining session and refreshing tokens.
+    
+    Called periodically by client-side JavaScript to:
+    1. Verify user is still authenticated
+    2. Refresh access token if expiring soon
+    3. Keep sliding session alive
+    
+    Returns:
+        200: User authenticated, token refreshed if needed
+        401: User not authenticated, should redirect to login
+    """
+    try:
+        # Check if user is authenticated
+        if not session.get('access_token') or not session.get('user_email'):
+            logger.debug("Ping: User not authenticated")
+            return {'status': 'unauthenticated'}, 401
+        
+        # Try to ensure token is fresh
+        from app.auth.token_utils import ensure_fresh_access_token, AuthRequired
+        try:
+            ensure_fresh_access_token()
+            logger.debug(f"Ping: Token refreshed for {session.get('user_email')}")
+            return {'status': 'ok', 'message': 'Token refreshed successfully'}, 200
+        except AuthRequired as e:
+            logger.warning(f"Ping: Token refresh failed - {str(e)}")
+            session.clear()
+            return {'status': 'auth_required', 'message': str(e)}, 401
+            
+    except Exception as e:
+        logger.error(f"Ping error: {str(e)}")
+        return {'status': 'error', 'message': 'Server error'}, 500
