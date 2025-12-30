@@ -160,6 +160,10 @@ def redirect_handler():
         expires_in = result.get('expires_in', 3600)  # Default 1 hour
         token_expires_at = datetime.now(tz.utc) + timedelta(seconds=expires_in)
         session['token_expires_at'] = token_expires_at.isoformat()
+        
+        # Store login time for absolute session timeout (security requirement)
+        session['login_time'] = datetime.now(tz.utc).isoformat()
+        print(f"DEBUG: Login time set: {session['login_time']}")
         print(f"DEBUG: Token expires at: {token_expires_at} (in {expires_in} seconds)")
         print(f"DEBUG: Refresh token available: {bool(result.get('refresh_token'))}")
         

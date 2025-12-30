@@ -176,8 +176,15 @@ def submit_contract():
         from app.auth.token_utils import ensure_fresh_access_token, AuthRequired
         try:
             ensure_fresh_access_token()
-        except AuthRequired:
-            return jsonify({'success': False, 'message': 'Authentication required. Please log in again.'}), 401
+        except AuthRequired as e:
+            logger.warning(f"Authentication required during contract submission: {str(e)}")
+            session.clear()
+            return jsonify({
+                'success': False,
+                'message': 'Your session has expired. Please log in again.',
+                'auth_error': True,
+                'redirect_url': '/auth/login'
+            }), 401
         
         # Get form data
         submitter_name = request.form.get('submitterName')

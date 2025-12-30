@@ -475,11 +475,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Check if error is related to authentication
                     const errorMessage = (data.message || '').toLowerCase();
                     const authErrors = ['token', 'expired', 'unauthorized', 'session', 'authentication', 'logged in', 'login'];
-                    const isAuthError = authErrors.some(term => errorMessage.includes(term));
+                    const isAuthError = authErrors.some(term => errorMessage.includes(term)) || data.auth_error;
                     
-                    if (isAuthError) {
+                    if (isAuthError || data.redirect_url) {
                         // Auth error - redirect to login
-                        window.location.href = '/auth/login';
+                        window.location.href = data.redirect_url || '/auth/login';
                         return;
                     } else {
                         // Show other errors normally
@@ -491,9 +491,11 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Fetch error:', error);
-                alert('An error occurred while uploading the contract. Please try again.');
-                submitBtn.innerHTML = originalHtml;
-                submitBtn.disabled = false;
+                // On network/fetch errors, redirect to login (likely authentication issue)
+                alert('An error occurred. Redirecting to login...');
+                setTimeout(() => {
+                    window.location.href = '/auth/login';
+                }, 1500);
             });
         });
     }
@@ -536,38 +538,61 @@ let businessTermsChoices = [];
 let isUserAdmin = false;
 
 function loadFieldChoices() {
+    // Helper function to handle fetch with auth check
+    const fetchWithAuthCheck = (url) => {
+        return fetch(url, {
+            credentials: 'same-origin',
+            redirect: 'manual'  // Don't auto-follow redirects
+        })
+            .then(response => {
+                console.log(`Field choice ${url} response status:`, response.status, 'type:', response.type);
+                
+                // Check for authentication redirect (302 or 401)
+                if (response.status === 401 || response.status === 302 || response.type === 'opaqueredirect') {
+                    console.log('Session expired during field choices load, redirecting to login');
+                    window.location.href = '/auth/login';
+                    return null;
+                }
+                
+                if (!response.ok) {
+                    console.error(`Failed to load ${url}, status:`, response.status);
+                    return null;
+                }
+                
+                return response.json();
+            })
+            .catch(error => {
+                console.error(`Error loading from ${url}:`, error);
+                return null;
+            });
+    };
+    
     // Load Risk Assignee choices
-    fetch('/api/field-choices/RiskAssignee')
-        .then(response => response.json())
+    fetchWithAuthCheck('/api/field-choices/RiskAssignee')
         .then(data => {
-            if (data.success && data.choices.length > 0) {
+            if (data && data.success && data.choices.length > 0) {
                 riskAssigneeChoices = data.choices;
                 console.log('Loaded Risk Assignee choices:', riskAssigneeChoices);
             }
-        })
-        .catch(error => console.error('Error loading Risk Assignee choices:', error));
+        });
     
     // Load Status choices
-    fetch('/api/field-choices/Status')
-        .then(response => response.json())
+    fetchWithAuthCheck('/api/field-choices/Status')
         .then(data => {
-            if (data.success && data.choices.length > 0) {
+            if (data && data.success && data.choices.length > 0) {
                 statusChoices = data.choices;
                 console.log('Loaded Status choices:', statusChoices);
             }
-        })
-        .catch(error => console.error('Error loading Status choices:', error));
+        });
     
     // Load Business Terms choices
-    fetch('/api/field-choices/BusinessTerms')
-        .then(response => response.json())
+    fetchWithAuthCheck('/api/field-choices/BusinessTerms')
         .then(data => {
-            if (data.success && data.choices.length > 0) {
+            if (data && data.success && data.choices.length > 0) {
                 businessTermsChoices = data.choices;
                 console.log('Loaded Business Terms choices:', businessTermsChoices);
             }
-        })
-        .catch(error => console.error('Error loading Business Terms choices:', error));
+        });
 }
 
 // Show success message with green background
@@ -640,9 +665,30 @@ function loadDashboardData() {
         loadFieldChoices();
     }
     
-    fetch('/api/contracts')
-        .then(response => response.json())
+    fetch('/api/contracts', {
+        credentials: 'same-origin',
+        redirect: 'manual'  // Don't auto-follow redirects
+    })
+        .then(response => {
+            console.log('Dashboard fetch response status:', response.status, 'redirected:', response.redirected);
+            
+            // Check for authentication redirect (302 or 401)
+            if (response.status === 401 || response.status === 302 || response.type === 'opaqueredirect') {
+                console.log('Session expired - redirecting to login');
+                window.location.href = '/auth/login';
+                return null;
+            }
+            
+            if (!response.ok) {
+                console.error('Dashboard fetch failed with status:', response.status);
+                return null;
+            }
+            
+            return response.json();
+        })
         .then(data => {
+            if (!data) return; // Already redirected or error
+            
             if (data.success) {
                 const contracts = data.contracts;
                 isUserAdmin = data.is_admin || false;
@@ -655,7 +701,12 @@ function loadDashboardData() {
         })
         .catch(error => {
             console.error('Error loading contracts:', error);
-            showNoContracts();
+            // Check if error is due to authentication
+            if (error.message && error.message.includes('redirect')) {
+                window.location.href = '/auth/login';
+            } else {
+                showNoContracts();
+            }
         });
 }
 
