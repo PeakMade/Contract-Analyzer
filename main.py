@@ -157,14 +157,6 @@ def index():
         flash('Your session has expired. Please log in again.', 'warning')
         return redirect('/auth/login')
     
-    # Log user access to app
-    try:
-        activity_logger.log_login()
-        print(f"DEBUG: User access logged to SharePoint")
-    except Exception as e:
-        print(f"DEBUG: Failed to log user access: {e}")
-        # Non-critical - don't block user
-    
     return render_template('index.html')
 
 @app.route('/submit-contract', methods=['POST'])

@@ -194,23 +194,33 @@ class ActivityLogger:
                 user_display_name = user.get('name') or session.get('user_name', 'Unknown User')
                 print(f"[ActivityLogger] Extracted display name from session: {user_display_name}")
             
+            # Get user role (admin or user)
+            is_admin = session.get('is_admin', False)
+            user_role = 'Admin' if is_admin else 'User'
+            
             print(f"[ActivityLogger] STEP 2: Preparing log data...")
-            # Prepare the log entry with LoginTime
+            # Prepare the log entry for Innovation Use Log
             timestamp = datetime.utcnow().isoformat() + 'Z'
             log_data = {
                 'fields': {
-                    'Title': f"Login - {user_email}",
+                    'Title': user_email,
                     'UserEmail': user_email,
-                    'UserDisplayName': user_display_name,
-                    'LoginTime': timestamp
+                    'UserName': user_display_name,
+                    'LoginTimestamp': timestamp,
+                    'UserRole': user_role,
+                    'ActivityType': 'Login',
+                    'Application': 'Contract Analyzer'
                 }
             }
             
             print(f"[ActivityLogger] DEBUG: Login log data prepared:")
-            print(f"[ActivityLogger]   - Title: Login - {user_email}")
+            print(f"[ActivityLogger]   - Title: {user_email}")
             print(f"[ActivityLogger]   - UserEmail: {user_email}")
-            print(f"[ActivityLogger]   - UserDisplayName: {user_display_name}")
-            print(f"[ActivityLogger]   - LoginTime: {timestamp}")
+            print(f"[ActivityLogger]   - UserName: {user_display_name}")
+            print(f"[ActivityLogger]   - LoginTimestamp: {timestamp}")
+            print(f"[ActivityLogger]   - UserRole: {user_role}")
+            print(f"[ActivityLogger]   - ActivityType: Login")
+            print(f"[ActivityLogger]   - Application: Contract Analyzer")
             print(f"[ActivityLogger] Full log_data JSON: {log_data}")
             
             print(f"[ActivityLogger] STEP 3: Getting authorization headers...")
@@ -223,7 +233,7 @@ class ActivityLogger:
             print(f"[ActivityLogger] ✓ Headers obtained successfully")
             
             print(f"[ActivityLogger] STEP 4: Getting site ID from environment...")
-            # Get site ID from environment variable (same as log_analysis method)
+            # Get site ID from environment variable
             site_id = os.getenv('O365_SITE_ID')
             print(f"[ActivityLogger] DEBUG: Site ID from env: {site_id}")
             print(f"[ActivityLogger] DEBUG: Log List ID: {self.log_list_id}")
@@ -259,6 +269,114 @@ class ActivityLogger:
                 
         except Exception as e:
             print(f"[ActivityLogger] ✗✗✗ EXCEPTION LOGGING LOGIN: {e}")
+            print(f"[ActivityLogger] Exception type: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
+            print(f"{'='*60}\n")
+            return False
+    
+    def log_logout(self, user_email=None, user_display_name=None):
+        """
+        Log when a user logs out of the application
+        
+        Args:
+            user_email: User's email (defaults to session user)
+            user_display_name: User's display name (defaults to session user)
+        
+        Returns:
+            bool: True if logged successfully, False otherwise
+        """
+        print(f"\n{'='*60}")
+        print(f"[ActivityLogger] LOGGING USER LOGOUT - METHOD CALLED")
+        print(f"[ActivityLogger] Input params - email: {user_email}, display_name: {user_display_name}")
+        print(f"{'='*60}")
+        
+        try:
+            print(f"[ActivityLogger] STEP 1: Getting user info...")
+            # Get user info from session if not provided (before session is cleared)
+            if not user_email:
+                user = session.get('user', {})
+                user_email = user.get('email') or session.get('user_email', 'unknown@unknown.com')
+                print(f"[ActivityLogger] Extracted email from session: {user_email}")
+            
+            if not user_display_name:
+                user = session.get('user', {})
+                user_display_name = user.get('name') or session.get('user_name', 'Unknown User')
+                print(f"[ActivityLogger] Extracted display name from session: {user_display_name}")
+            
+            # Get user role (admin or user)
+            is_admin = session.get('is_admin', False)
+            user_role = 'Admin' if is_admin else 'User'
+            
+            print(f"[ActivityLogger] STEP 2: Preparing log data...")
+            # Prepare the log entry for Innovation Use Log
+            timestamp = datetime.utcnow().isoformat() + 'Z'
+            log_data = {
+                'fields': {
+                    'Title': user_email,
+                    'UserEmail': user_email,
+                    'UserName': user_display_name,
+                    'LoginTimestamp': timestamp,  # Using same field for timestamp
+                    'UserRole': user_role,
+                    'ActivityType': 'Logout',
+                    'Application': 'Contract Analyzer'
+                }
+            }
+            
+            print(f"[ActivityLogger] DEBUG: Logout log data prepared:")
+            print(f"[ActivityLogger]   - Title: {user_email}")
+            print(f"[ActivityLogger]   - UserEmail: {user_email}")
+            print(f"[ActivityLogger]   - UserName: {user_display_name}")
+            print(f"[ActivityLogger]   - LoginTimestamp: {timestamp}")
+            print(f"[ActivityLogger]   - UserRole: {user_role}")
+            print(f"[ActivityLogger]   - ActivityType: Logout")
+            print(f"[ActivityLogger]   - Application: Contract Analyzer")
+            
+            print(f"[ActivityLogger] STEP 3: Getting authorization headers...")
+            # Get authorization headers
+            headers = self._get_headers()
+            if not headers:
+                print("[ActivityLogger] ✗✗✗ ERROR: Failed to get authorization headers")
+                print(f"{'='*60}\n")
+                return False
+            print(f"[ActivityLogger] ✓ Headers obtained successfully")
+            
+            print(f"[ActivityLogger] STEP 4: Getting site ID from environment...")
+            # Get site ID from environment variable
+            site_id = os.getenv('O365_SITE_ID')
+            print(f"[ActivityLogger] DEBUG: Site ID from env: {site_id}")
+            print(f"[ActivityLogger] DEBUG: Log List ID: {self.log_list_id}")
+            
+            if not site_id:
+                print("[ActivityLogger] ✗✗✗ ERROR: O365_SITE_ID not found in environment")
+                print(f"{'='*60}\n")
+                return False
+            print(f"[ActivityLogger] ✓ Site ID obtained: {site_id}")
+            
+            print(f"[ActivityLogger] STEP 5: Posting to SharePoint...")
+            # Post to SharePoint list
+            endpoint = f"https://graph.microsoft.com/v1.0/sites/{site_id}/lists/{self.log_list_id}/items"
+            print(f"[ActivityLogger] DEBUG: Posting to endpoint: {endpoint}")
+            
+            response = requests.post(endpoint, headers=headers, json=log_data)
+            
+            print(f"[ActivityLogger] STEP 6: Processing response...")
+            print(f"[ActivityLogger] Response status code: {response.status_code}")
+            
+            if response.status_code == 201:
+                print(f"[ActivityLogger] ✓✓✓ LOGOUT LOGGED SUCCESSFULLY")
+                print(f"[ActivityLogger] Response body: {response.text[:500]}")
+                print(f"{'='*60}\n")
+                return True
+            else:
+                print(f"[ActivityLogger] ✗✗✗ FAILED TO LOG LOGOUT")
+                print(f"[ActivityLogger] Status: {response.status_code}")
+                print(f"[ActivityLogger] Response: {response.text}")
+                print(f"{'='*60}\n")
+                return False
+                
+        except Exception as e:
+            print(f"[ActivityLogger] ✗✗✗ EXCEPTION LOGGING LOGOUT: {e}")
             print(f"[ActivityLogger] Exception type: {type(e).__name__}")
             import traceback
             traceback.print_exc()

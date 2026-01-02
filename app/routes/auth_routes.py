@@ -223,7 +223,16 @@ def logout():
     """Logout user - only invalidates current user's session"""
     try:
         user_email = session.get('user_email', 'Unknown')
+        user_name = session.get('user_name', 'Unknown')
         logger.info(f"User {user_email} logging out")
+        
+        # Log the logout activity BEFORE clearing session
+        from app.services.activity_logger import logger as activity_logger
+        try:
+            activity_logger.log_logout(user_email=user_email, user_display_name=user_name)
+        except Exception as e:
+            print(f"DEBUG: Failed to log logout: {e}")
+            # Non-critical - don't block logout
         
         # Flask-Session automatically handles session file deletion when session.clear() is called
         # Do NOT manually delete session files or iterate through the session directory
