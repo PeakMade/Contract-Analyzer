@@ -239,16 +239,12 @@ def logout():
         # This ensures only the current user's session is invalidated
         session.clear()
         
-        # Build proper Microsoft logout URL
-        tenant_id = current_app.config['TENANT_ID']
-        post_logout_uri = url_for('index', _external=True)
-        logout_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/logout?post_logout_redirect_uri={post_logout_uri}"
-        
-        print(f"DEBUG: User {user_email} logged out, redirecting to Microsoft logout")
-        print(f"DEBUG: Post-logout URI: {post_logout_uri}")
+        # Redirect to login page which will show Microsoft account picker
+        # User stays signed in to Microsoft but can select their account again
+        print(f"DEBUG: User {user_email} logged out, redirecting to login page")
         
         flash('You have been logged out successfully.', 'info')
-        return redirect(logout_url)
+        return redirect(url_for('auth.login'))
         
     except Exception as e:
         logger.error(f"Logout error: {str(e)}")
