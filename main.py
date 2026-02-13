@@ -157,6 +157,9 @@ def index():
         flash('Your session has expired. Please log in again.', 'warning')
         return redirect('/auth/login')
     
+    # Start Session is now logged client-side via JavaScript + sessionStorage
+    # This ensures it logs on every tab open, not just Flask session start
+    
     return render_template('index.html')
 
 @app.route('/submit-contract', methods=['POST'])
@@ -225,6 +228,14 @@ def submit_contract():
         )
         
         if upload_result['success']:
+            # Log successful contract upload
+            try:
+                user_email = session.get('user_email')
+                user_name = session.get('user_name')
+                activity_logger.log_successful_contract_upload(user_email=user_email, user_display_name=user_name)
+            except Exception as log_err:
+                print(f"[ActivityLogger] Failed to log successful contract upload: {log_err}")
+            
             # Store submission details in session for success message
             session['last_submission'] = {
                 'contract_name': contract_name,
@@ -246,6 +257,14 @@ def submit_contract():
                 'redirect_url': url_for('index') + '?tab=dashboard'
             })
         else:
+            # Log failed contract upload
+            try:
+                user_email = session.get('user_email')
+                user_name = session.get('user_name')
+                activity_logger.log_failed_contract_upload(user_email=user_email, user_display_name=user_name)
+            except Exception as log_err:
+                print(f"[ActivityLogger] Failed to log failed contract upload: {log_err}")
+            
             error_msg = upload_result.get("error", "Unknown error")
             # Check if this is a token expiration error
             if "expired" in error_msg.lower() or "unauthorized" in error_msg.lower() or "authentication" in error_msg.lower():
@@ -263,6 +282,14 @@ def submit_contract():
             }), 500
             
     except Exception as e:
+        # Log failed contract upload for exceptions
+        try:
+            user_email = session.get('user_email')
+            user_name = session.get('user_name')
+            activity_logger.log_failed_contract_upload(user_email=user_email, user_display_name=user_name)
+        except Exception as log_err:
+            print(f"[ActivityLogger] Failed to log failed contract upload: {log_err}")
+        
         error_str = str(e)
         print(f"Error in submit_contract: {error_str}")
         
@@ -462,6 +489,14 @@ def upload_completed_contract():
                     # Non-critical - file uploaded successfully
                     pass
             
+            # Log successful completed contract upload
+            try:
+                user_email = session.get('user_email')
+                user_name = session.get('user_name')
+                activity_logger.log_successful_completed_contract_upload(user_email=user_email, user_display_name=user_name)
+            except Exception as log_err:
+                print(f"[ActivityLogger] Failed to log successful completed contract upload: {log_err}")
+            
             return jsonify({
                 'success': True,
                 'message': 'Completed contract uploaded successfully',
@@ -469,12 +504,28 @@ def upload_completed_contract():
                 'file_url': enhanced_url
             })
         else:
+            # Log failed completed contract upload
+            try:
+                user_email = session.get('user_email')
+                user_name = session.get('user_name')
+                activity_logger.log_failed_completed_contract_upload(user_email=user_email, user_display_name=user_name)
+            except Exception as log_err:
+                print(f"[ActivityLogger] Failed to log failed completed contract upload: {log_err}")
+            
             return jsonify({
                 'success': False,
                 'message': upload_result.get('error', 'Failed to upload completed contract')
             }), 500
             
     except Exception as e:
+        # Log failed completed contract upload
+        try:
+            user_email = session.get('user_email')
+            user_name = session.get('user_name')
+            activity_logger.log_failed_completed_contract_upload(user_email=user_email, user_display_name=user_name)
+        except Exception as log_err:
+            print(f"[ActivityLogger] Failed to log failed completed contract upload: {log_err}")
+        
         print(f"Error uploading completed contract: {str(e)}")
         import traceback
         traceback.print_exc()
@@ -916,6 +967,14 @@ def apply_suggestions_new(contract_id):
         # Get original AI-detected party info for reset functionality
         original_party_info = cached_data.get('original_party_info', party_info)
         
+        # Log Successful AI Analysis activity
+        user_email = session.get('user_email')
+        user_name = session.get('user_name')
+        try:
+            result = activity_logger.log_successful_ai_analysis(user_email=user_email, user_display_name=user_name)
+            print(f"[ActivityLogger] Successful AI Analysis log result: {result}")
+        except Exception as e:
+            print(f"[ActivityLogger] Exception logging Successful AI Analysis: {e}")
         # Render template with analysis_completed flag and party info
         return render_template(
             'apply_suggestions.html',
@@ -932,6 +991,14 @@ def apply_suggestions_new(contract_id):
         print(f"Error in apply_suggestions_new: {str(e)}")
         import traceback
         traceback.print_exc()
+        # Log Failed AI Analysis activity
+        user_email = session.get('user_email')
+        user_name = session.get('user_name')
+        try:
+            result = activity_logger.log_failed_ai_analysis(user_email=user_email, user_display_name=user_name)
+            print(f"[ActivityLogger] Failed AI Analysis log result: {result}")
+        except Exception as log_e:
+            print(f"[ActivityLogger] Exception logging Failed AI Analysis: {log_e}")
         flash('Error loading analysis results.', 'error')
         return redirect(url_for('dashboard'))
 
@@ -1083,11 +1150,27 @@ def apply_suggestions_action(contract_id):
                 )
                 print(f"✓ Upload successful: {upload_result.get('name')}")
             except PermissionError as e:
+                # Log failed edited contract upload
+                try:
+                    user_email = session.get('user_email')
+                    user_name = session.get('user_name')
+                    activity_logger.log_failed_edited_contract_upload(user_email=user_email, user_display_name=user_name)
+                except Exception as log_err:
+                    print(f"[ActivityLogger] Failed to log failed edited contract upload: {log_err}")
+                
                 print(f"✗ PermissionError during upload: {e}")
                 if 'SESSION_EXPIRED' in str(e):
                     return jsonify({'error': 'Session expired', 'message': 'Please sign in again'}), 401
                 raise
             except sp_upload.UploadError as e:
+                # Log failed edited contract upload
+                try:
+                    user_email = session.get('user_email')
+                    user_name = session.get('user_name')
+                    activity_logger.log_failed_edited_contract_upload(user_email=user_email, user_display_name=user_name)
+                except Exception as log_err:
+                    print(f"[ActivityLogger] Failed to log failed edited contract upload: {log_err}")
+                
                 print(f"✗ UploadError: {str(e)}")
                 return jsonify({'error': 'Upload failed', 'message': str(e)}), 502
             
@@ -1101,6 +1184,14 @@ def apply_suggestions_action(contract_id):
                     print(f"⚠ Failed to update status (non-critical)")
             else:
                 print(f"⚠ SharePoint item ID not available for status update (non-critical)")
+            
+            # Log successful edited contract upload
+            try:
+                user_email = session.get('user_email')
+                user_name = session.get('user_name')
+                activity_logger.log_successful_edited_contract_upload(user_email=user_email, user_display_name=user_name)
+            except Exception as log_err:
+                print(f"[ActivityLogger] Failed to log successful edited contract upload: {log_err}")
             
             # Generate signed download path (relative URL, 5-minute TTL)
             # This allows download even if session expires within the TTL window
@@ -1127,10 +1218,26 @@ def apply_suggestions_action(contract_id):
                 edited_path.unlink()
     
     except PermissionError as e:
+        # Log failed edited contract upload
+        try:
+            user_email = session.get('user_email')
+            user_name = session.get('user_name')
+            activity_logger.log_failed_edited_contract_upload(user_email=user_email, user_display_name=user_name)
+        except Exception as log_err:
+            print(f"[ActivityLogger] Failed to log failed edited contract upload: {log_err}")
+        
         if 'SESSION_EXPIRED' in str(e):
             return jsonify({'error': 'Session expired', 'message': 'Please sign in again'}), 401
         raise
     except Exception as e:
+        # Log failed edited contract upload
+        try:
+            user_email = session.get('user_email')
+            user_name = session.get('user_name')
+            activity_logger.log_failed_edited_contract_upload(user_email=user_email, user_display_name=user_name)
+        except Exception as log_err:
+            print(f"[ActivityLogger] Failed to log failed edited contract upload: {log_err}")
+        
         print(f"Error applying suggestions: {str(e)}")
         import traceback
         traceback.print_exc()

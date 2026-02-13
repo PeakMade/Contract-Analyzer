@@ -1,4 +1,5 @@
-from flask import Blueprint, request, session, redirect, url_for, current_app, flash
+
+from flask import Blueprint, request, session, redirect, url_for, current_app, flash, jsonify
 import msal
 import requests
 import logging
@@ -7,6 +8,34 @@ from app.services.activity_logger import logger as activity_logger
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 logger = logging.getLogger(__name__)
+
+@auth_bp.route('/api/log-start-session', methods=['POST'])
+def log_start_session():
+    """API endpoint to log Start Session activity (called from JS on tab open)"""
+    try:
+        user_email = session.get('user_email')
+        user_name = session.get('user_name')
+        if not user_email:
+            return jsonify({"success": False, "error": "No user_email in session"}), 401
+        result = activity_logger.log_start_session(user_email=user_email, user_display_name=user_name)
+        return jsonify({"success": result})
+    except Exception as e:
+        logger.error(f"Error logging start session: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@auth_bp.route('/api/log-end-session', methods=['POST'])
+def log_end_session():
+    """API endpoint to log End Session activity (called from JS on browser/tab close)"""
+    try:
+        user_email = session.get('user_email')
+        user_name = session.get('user_name')
+        if not user_email:
+            return jsonify({"success": False, "error": "No user_email in session"}), 401
+        result = activity_logger.log_end_session(user_email=user_email, user_display_name=user_name)
+        return jsonify({"success": result})
+    except Exception as e:
+        logger.error(f"Error logging end session: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 def get_msal_app():
     """Create MSAL app"""
@@ -229,9 +258,13 @@ def logout():
         # Log the logout activity BEFORE clearing session
         from app.services.activity_logger import logger as activity_logger
         try:
+            # Log End Session when user explicitly logs out
+            activity_logger.log_end_session(user_email=user_email, user_display_name=user_name)
+            # Log Logout activity
             activity_logger.log_logout(user_email=user_email, user_display_name=user_name)
+            print(f"DEBUG: Logged End Session and Logout for {user_email}")
         except Exception as e:
-            print(f"DEBUG: Failed to log logout: {e}")
+            print(f"DEBUG: Failed to log logout activities: {e}")
             # Non-critical - don't block logout
         
         # Flask-Session automatically handles session file deletion when session.clear() is called

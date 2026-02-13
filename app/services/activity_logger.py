@@ -10,6 +10,122 @@ from flask import session
 
 
 class ActivityLogger:
+    def log_start_session(self, user_email=None, user_display_name=None):
+        """Log when a user starts a session (first interaction after login)"""
+        return self._log_activity_type('Start Session', user_email, user_display_name)
+
+    def log_end_session(self, user_email=None, user_display_name=None):
+        """Log when a user ends a session (browser/tab close)"""
+        return self._log_activity_type('End Session', user_email, user_display_name)
+
+    def log_successful_ai_analysis(self, user_email=None, user_display_name=None):
+        """Log when a user completes AI analysis and reaches apply suggestions page"""
+        return self._log_activity_type('Successful AI Analysis', user_email, user_display_name)
+
+    def log_failed_ai_analysis(self, user_email=None, user_display_name=None):
+        """Log when a user runs AI analysis but does not reach apply suggestions (error)"""
+        return self._log_activity_type('Failed AI Analysis', user_email, user_display_name)
+
+    def log_successful_contract_upload(self, user_email=None, user_display_name=None):
+        """Log when a contract is successfully uploaded on submit contract page"""
+        return self._log_activity_type('Successful Contract Upload', user_email, user_display_name)
+
+    def log_failed_contract_upload(self, user_email=None, user_display_name=None):
+        """Log when a contract fails to upload on submit contract page"""
+        return self._log_activity_type('Failed Contract Upload', user_email, user_display_name)
+
+    def log_successful_edited_contract_upload(self, user_email=None, user_display_name=None):
+        """Log when apply suggestions button successfully uploads edited contract"""
+        return self._log_activity_type('Successful Edited Contract Upload', user_email, user_display_name)
+
+    def log_failed_edited_contract_upload(self, user_email=None, user_display_name=None):
+        """Log when apply suggestions button fails to upload edited contract"""
+        return self._log_activity_type('Failed Edited Contract Upload', user_email, user_display_name)
+
+    def log_successful_completed_contract_upload(self, user_email=None, user_display_name=None):
+        """Log when completed contract successfully uploads via dashboard Upload Completed Document button"""
+        return self._log_activity_type('Successful Completed Contract Upload', user_email, user_display_name)
+
+    def log_failed_completed_contract_upload(self, user_email=None, user_display_name=None):
+        """Log when completed contract fails to upload via dashboard Upload Completed Document button"""
+        return self._log_activity_type('Failed Completed Contract Upload', user_email, user_display_name)
+
+    def _log_activity_type(self, activity_type, user_email=None, user_display_name=None):
+        """Helper to log a generic activity type with standard fields"""
+        print(f"\n{'='*60}")
+        print(f"[ActivityLogger] LOGGING ACTIVITY TYPE: {activity_type}")
+        print(f"[ActivityLogger] Input params - email: {user_email}, display_name: {user_display_name}")
+        print(f"{'='*60}")
+        try:
+            # Get user info from session if not provided
+            if not user_email:
+                user = session.get('user', {})
+                user_email = user.get('email') or session.get('user_email', 'unknown@unknown.com')
+                print(f"[ActivityLogger] Extracted email from session: {user_email}")
+            if not user_display_name:
+                user = session.get('user', {})
+                user_display_name = user.get('name') or session.get('user_name', 'Unknown User')
+                print(f"[ActivityLogger] Extracted display name from session: {user_display_name}")
+            is_admin = session.get('is_admin', False)
+            user_role = 'Admin' if is_admin else 'User'
+            timestamp = datetime.utcnow().isoformat() + 'Z'
+            app_env = os.getenv('APP_ENV', 'Unknown')
+            log_data = {
+                'fields': {
+                    'Title': user_email,
+                    'UserEmail': user_email,
+                    'UserName': user_display_name,
+                    'LoginTimestamp': timestamp,
+                    'UserRole': user_role,
+                    'ActivityType': activity_type,
+                    'Application': 'Contract Analyzer',
+                    'Env': app_env
+                }
+            }
+            print(f"[ActivityLogger] DEBUG: {activity_type} log data prepared:")
+            print(f"[ActivityLogger]   - Title: {user_email}")
+            print(f"[ActivityLogger]   - UserEmail: {user_email}")
+            print(f"[ActivityLogger]   - UserName: {user_display_name}")
+            print(f"[ActivityLogger]   - LoginTimestamp: {timestamp}")
+            print(f"[ActivityLogger]   - UserRole: {user_role}")
+            print(f"[ActivityLogger]   - ActivityType: {activity_type}")
+            print(f"[ActivityLogger]   - Application: Contract Analyzer")
+            print(f"[ActivityLogger]   - Env: {app_env}")
+            headers = self._get_headers()
+            if not headers:
+                print(f"[ActivityLogger] ✗✗✗ ERROR: Failed to get authorization headers")
+                print(f"{'='*60}\n")
+                return False
+            site_id = os.getenv('O365_SITE_ID')
+            print(f"[ActivityLogger] DEBUG: Site ID from env: {site_id}")
+            print(f"[ActivityLogger] DEBUG: Log List ID: {self.log_list_id}")
+            if not site_id:
+                print(f"[ActivityLogger] ✗✗✗ ERROR: O365_SITE_ID not found in environment")
+                print(f"{'='*60}\n")
+                return False
+            endpoint = f"https://graph.microsoft.com/v1.0/sites/{site_id}/lists/{self.log_list_id}/items"
+            print(f"[ActivityLogger] DEBUG: Posting to endpoint: {endpoint}")
+            response = requests.post(endpoint, headers=headers, json=log_data)
+            print(f"[ActivityLogger] STEP 6: Processing response...")
+            print(f"[ActivityLogger] Response status code: {response.status_code}")
+            if response.status_code == 201:
+                print(f"[ActivityLogger] ✓✓✓ {activity_type.upper()} LOGGED SUCCESSFULLY")
+                print(f"[ActivityLogger] Response body: {response.text[:500]}")
+                print(f"{'='*60}\n")
+                return True
+            else:
+                print(f"[ActivityLogger] ✗✗✗ FAILED TO LOG {activity_type.upper()}")
+                print(f"[ActivityLogger] Status: {response.status_code}")
+                print(f"[ActivityLogger] Response: {response.text}")
+                print(f"{'='*60}\n")
+                return False
+        except Exception as e:
+            print(f"[ActivityLogger] ✗✗✗ EXCEPTION LOGGING {activity_type.upper()}: {e}")
+            print(f"[ActivityLogger] Exception type: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
+            print(f"{'='*60}\n")
+            return False
     """Service for logging user activities to SharePoint"""
     
     def __init__(self):
@@ -201,6 +317,7 @@ class ActivityLogger:
             print(f"[ActivityLogger] STEP 2: Preparing log data...")
             # Prepare the log entry for Innovation Use Log
             timestamp = datetime.utcnow().isoformat() + 'Z'
+            app_env = os.getenv('APP_ENV', 'Unknown')
             log_data = {
                 'fields': {
                     'Title': user_email,
@@ -209,7 +326,8 @@ class ActivityLogger:
                     'LoginTimestamp': timestamp,
                     'UserRole': user_role,
                     'ActivityType': 'Login',
-                    'Application': 'Contract Analyzer'
+                    'Application': 'Contract Analyzer',
+                    'Env': app_env
                 }
             }
             
@@ -311,6 +429,7 @@ class ActivityLogger:
             print(f"[ActivityLogger] STEP 2: Preparing log data...")
             # Prepare the log entry for Innovation Use Log
             timestamp = datetime.utcnow().isoformat() + 'Z'
+            app_env = os.getenv('APP_ENV', 'Unknown')
             log_data = {
                 'fields': {
                     'Title': user_email,
@@ -319,7 +438,8 @@ class ActivityLogger:
                     'LoginTimestamp': timestamp,  # Using same field for timestamp
                     'UserRole': user_role,
                     'ActivityType': 'Logout',
-                    'Application': 'Contract Analyzer'
+                    'Application': 'Contract Analyzer',
+                    'Env': app_env
                 }
             }
             

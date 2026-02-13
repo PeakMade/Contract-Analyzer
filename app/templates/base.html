@@ -445,5 +445,37 @@
     </script>
     
     {% block extra_js %}{% endblock %}
+    <script>
+    // Log Start Session when tab opens (tracked via sessionStorage, not Flask session)
+    // sessionStorage clears when tab closes, so each tab open = new Start Session
+    (function() {
+        // Check if Start Session already logged for this tab
+        if (!sessionStorage.getItem('start_session_logged')) {
+            // This is a new tab open - log Start Session
+            fetch('/auth/api/log-start-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Mark this tab as having logged Start Session
+                    sessionStorage.setItem('start_session_logged', 'true');
+                    console.log('[ActivityLogger] Start Session logged for this tab');
+                } else {
+                    console.error('[ActivityLogger] Failed to log Start Session:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('[ActivityLogger] Error logging Start Session:', error);
+            });
+        } else {
+            console.log('[ActivityLogger] Start Session already logged for this tab (page refresh)');
+        }
+    })();
+    </script>
 </body>
 </html>
