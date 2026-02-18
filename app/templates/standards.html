@@ -167,16 +167,27 @@
       
       <!-- Standard Type Selector -->
       <div style="margin: 10px 0 20px 0;">
-        <label for="standardTypeDropdown" style="color: #495057; font-weight: 600; font-size: 1rem; display: block; margin-bottom: 8px;">
+        <label style="color: #495057; font-weight: 600; font-size: 1rem; display: block; margin-bottom: 12px;">
           Select Standard Type:
         </label>
-        <select id="standardTypeDropdown" 
-                style="width: 300px; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 0.95rem; background: white; cursor: pointer; font-weight: 500;">
-          <option value="default" selected>Default Standards ({{ preferred_standards|length }})</option>
-          <option value="type1">Type 1 - Security Standards ({{ security_standards|length if security_standards else 0 }})</option>
-          <option value="type2">Type 2 - Placeholder</option>
-          <option value="type3">Type 3 - Placeholder</option>
-        </select>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <button type="button" class="standard-type-btn" data-type="default"
+                  style="padding: 12px 24px; border: 2px solid #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
+            Default Standards ({{ preferred_standards|length }})
+          </button>
+          <button type="button" class="standard-type-btn" data-type="type1"
+                  style="padding: 12px 24px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+            Type 1 - Security Standards ({{ security_standards|length if security_standards else 0 }})
+          </button>
+          <button type="button" class="standard-type-btn" data-type="type2"
+                  style="padding: 12px 24px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+            Type 2 - Placeholder
+          </button>
+          <button type="button" class="standard-type-btn" data-type="type3"
+                  style="padding: 12px 24px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+            Type 3 - Placeholder
+          </button>
+        </div>
       </div>
 
       <!-- Default Standards Selection -->
@@ -660,11 +671,8 @@ function addCustomStandard() {
   setTimeout(() => msg.remove(), 3000);
 }
 
-// Handle standard type dropdown changes
-function handleStandardTypeChange() {
-  const dropdown = document.getElementById('standardTypeDropdown');
-  const selectedType = dropdown.value;
-  
+// Handle standard type button clicks
+function handleStandardTypeChange(selectedType) {
   // Hide all standard type sections
   const allSections = document.querySelectorAll('.standard-type-section');
   allSections.forEach(section => {
@@ -678,12 +686,24 @@ function handleStandardTypeChange() {
     selectedSection.style.display = 'block';
   }
   
-  // If switching to default, keep SELECT ALL/DESELECT ALL buttons visible
-  // Otherwise, hide them (they're in the default section header)
-  const selectButtons = document.querySelector('.select-all-btn-immediate')?.parentElement;
-  if (selectButtons && selectedType === 'default') {
-    // Buttons are already in the default section, so they'll show automatically
-  }
+  // Update button styles - active button gets gradient, others get white
+  const allButtons = document.querySelectorAll('.standard-type-btn');
+  allButtons.forEach(btn => {
+    const btnType = btn.getAttribute('data-type');
+    if (btnType === selectedType) {
+      // Active button - gradient background
+      btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+      btn.style.color = 'white';
+      btn.style.borderColor = '#667eea';
+      btn.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+    } else {
+      // Inactive button - white background
+      btn.style.background = 'white';
+      btn.style.color = '#495057';
+      btn.style.borderColor = '#dee2e6';
+      btn.style.boxShadow = 'none';
+    }
+  });
 }
 
 // Initialize on page load
@@ -704,13 +724,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Set up standard type dropdown handler
-  const standardTypeDropdown = document.getElementById('standardTypeDropdown');
-  if (standardTypeDropdown) {
-    standardTypeDropdown.addEventListener('change', handleStandardTypeChange);
-    // Initialize to show default standards on page load
-    handleStandardTypeChange();
-  }
+  // Set up standard type button handlers
+  const standardTypeButtons = document.querySelectorAll('.standard-type-btn');
+  standardTypeButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+      const selectedType = this.getAttribute('data-type');
+      handleStandardTypeChange(selectedType);
+    });
+  });
+  
+  // Initialize to show default standards on page load
+  handleStandardTypeChange('default');
 
   // Show loading overlay when AI analysis form is submitted
   const analysisForm = document.querySelector('form[action*="/analyze"]');
