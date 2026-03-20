@@ -29,8 +29,16 @@ print(f"DEBUG: SECRET_KEY set: {bool(app.secret_key)}")
 
 # Configure Flask-Session for server-side filesystem storage
 # Azure App Service: Use /home/ for persistence across restarts
-# Local dev: Use ./flask_session
-session_dir_path = '/home/flask_session' if os.path.exists('/home') else './flask_session'
+# Local dev: Use absolute path for Windows network drive compatibility
+if os.path.exists('/home'):
+    session_dir_path = '/home/flask_session'
+else:
+    # Use absolute path on Windows to avoid path separator issues on network drives
+    session_dir_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flask_session')
+
+# Ensure session directory exists
+os.makedirs(session_dir_path, exist_ok=True)
+print(f"DEBUG: Session directory: {session_dir_path}")
 
 app.config.update(
     SESSION_TYPE='filesystem',
@@ -149,6 +157,16 @@ def inject_auth():
 @app.route('/')
 @login_required
 def index():
+    print(f"\n{'='*80}")
+    print(f"=== INDEX ROUTE CALLED ===")
+    print(f"{'='*80}")
+    print(f"Session keys: {list(session.keys())}")
+    print(f"access_token present: {bool(session.get('access_token'))}")
+    print(f"user_email: {session.get('user_email')}")
+    print(f"user_name: {session.get('user_name')}")
+    print(f"is_admin: {session.get('is_admin')}")
+    print(f"{'='*80}\n")
+    
     # Ensure access token is fresh
     from app.auth.token_utils import ensure_fresh_access_token, AuthRequired
     try:
@@ -607,6 +625,12 @@ def contract_standards(contract_id):
         print(f"\n=== DEBUG contract_standards ===")
         print(f"Contract ID: {contract_id}")
         
+        # Check if there's a cached analysis - if so, redirect to results page
+        cached_data = analysis_cache.get(contract_id)
+        if cached_data and cached_data.get('results'):
+            print(f"Found cached analysis, redirecting to results page")
+            return redirect(url_for('apply_suggestions_new', contract_id=contract_id))
+        
         # Get user info
         user_email = session.get('user_email')
         is_admin = session.get('is_admin', False)
@@ -697,10 +721,24 @@ def analyze_contract_route(contract_id):
         preferred_standards_dict = get_preferred_standards_dict()
         print(f"Loaded {len(preferred_standards_dict)} preferred standards")
         
-        # Run AI analysis
+        # Run AI analysis (now returns dict with 'standards' and 'grammar' keys)
+        # Pass file_path for Word COM API grammar checking
         print(f"Running AI analysis for {len(all_standards)} standards...")
-        analysis_results = run_analysis(contract_text, all_standards, preferred_standards_dict)
-        print(f"Analysis complete: {len(analysis_results)} results")
+        analysis_output = run_analysis(
+            contract_text, 
+            all_standards, 
+            preferred_standards_dict,
+            file_path=str(temp_file_path)  # Pass file path for Word COM grammar checking
+        )
+        
+        # Extract standards results and grammar results
+        analysis_results = analysis_output.get('standards', {})
+        grammar_results = analysis_output.get('grammar', None)
+        
+        print(f"Analysis complete: {len(analysis_results)} standards results")
+        if grammar_results:
+            print(f"Grammar check complete: {grammar_results.get('error_count', 0)} errors found")
+            print(f"Grammar check method: {grammar_results.get('method', 'unknown')}")
         
         # Detect contract parties  
         print("\n[DEBUG] About to detect contract parties...")
@@ -724,12 +762,13 @@ def analyze_contract_route(contract_id):
             traceback.print_exc()
             party_info = {'found': False}
         
-        # Cache the results with 30-minute TTL (include party_info and original_party_info)
+        # Cache the results with 30-minute TTL (include party_info, original_party_info, and grammar_results)
         cache_data = {
             'results': analysis_results,
             'selected': all_standards,
             'party_info': party_info,
             'original_party_info': party_info.copy() if party_info else {'found': False},  # Store AI-detected original
+            'grammar': grammar_results,  # Add grammar results to cache
             'ts': datetime.utcnow().isoformat()
         }
         analysis_cache.set(contract_id, cache_data, ttl=1800)
@@ -882,9 +921,12 @@ def apply_suggestions_new(contract_id):
         analysis_results = cached_data.get('results', {})
         selected_standards = cached_data.get('selected', [])
         party_info = cached_data.get('party_info', {'found': False})
+        grammar_results = cached_data.get('grammar', None)  # Get grammar results from cache
         timestamp = cached_data.get('ts', '')
         
         print(f"Found cached analysis: {len(analysis_results)} results")
+        if grammar_results:
+            print(f"Found cached grammar results: {grammar_results.get('error_count', 0)} errors")
         print(f"[DEBUG PARTY] party_info from cache: {party_info}")
         print(f"[DEBUG PARTY] party_info type: {type(party_info)}")
         print(f"[DEBUG PARTY] party_info.get('found'): {party_info.get('found')}")
@@ -984,7 +1026,8 @@ def apply_suggestions_new(contract_id):
             contract_name=contract_name,
             timestamp=timestamp,
             party_info=party_info,
-            original_party_info=original_party_info
+            original_party_info=original_party_info,
+            grammar_results=grammar_results  # Pass grammar results to template
         )
         
     except Exception as e:

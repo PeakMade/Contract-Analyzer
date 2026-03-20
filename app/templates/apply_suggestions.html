@@ -4,6 +4,12 @@
 
 {% block content %}
 <div class="container mt-4" style="position: relative;">
+    <!-- Back to Standards Button (primary action) -->
+    <a href="{{ url_for('contract_standards', contract_id=contract_id) }}"
+      style="position: absolute; top: -22px; right: 360px; z-index: 999; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3); border: 1px solid #667eea; display: flex; align-items: center; height: fit-content; white-space: nowrap;">
+      <i class="bi bi-arrow-left me-1"></i> Back to Standards
+    </a>
+    
     <!-- Return to Dashboard Button (positioned next to user button) -->
     <a href="{{ url_for('index') }}?tab=dashboard"
       style="position: absolute; top: -22px; right: 190px; z-index: 999; background: #6c757d; color: white; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #6c757d; display: flex; align-items: center; height: fit-content; white-space: nowrap;">
@@ -53,6 +59,94 @@
         <button type="submit" form="applySuggestionsForm" id="applySelectedBtnTop" class="btn btn-lg" style="background: #28a745; color: white; border: none;" disabled>
             <i class="bi bi-check-square"></i> Apply Selected
         </button>
+    </div>
+    {% endif %}
+
+    <!-- Grammar and Spelling Check Results (Collapsible) -->
+    {% if grammar_results %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header" style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); color: white; cursor: pointer;" 
+             data-bs-toggle="collapse" data-bs-target="#grammarResultsCollapse" aria-expanded="false">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-spell-check me-2"></i>Grammar & Spelling Check Results
+                    {% if grammar_results.error_count > 0 %}
+                    <span class="badge bg-light text-dark ms-2">{{ grammar_results.error_count }} Issues Found</span>
+                    {% else %}
+                    <span class="badge bg-success ms-2">No Issues Found</span>
+                    {% endif %}
+                </h5>
+                <div>
+                    {% if grammar_results.spelling_count > 0 %}
+                    <span class="badge bg-danger me-2">{{ grammar_results.spelling_count }} Spelling</span>
+                    {% endif %}
+                    {% if grammar_results.grammar_count > 0 %}
+                    <span class="badge bg-warning text-dark me-2">{{ grammar_results.grammar_count }} Grammar</span>
+                    {% endif %}
+                    <i class="bi bi-chevron-down"></i>
+                </div>
+            </div>
+        </div>
+        <div class="collapse" id="grammarResultsCollapse">
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>Spelling errors</strong> detected by Microsoft Word COM API. 
+                    <strong>Grammar issues</strong> identified by AI analysis of legal contract language.
+                </p>
+                
+                {% if grammar_results.error_count > 0 %}
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th width="10%" class="text-center">Type</th>
+                                <th width="25%">Error Text</th>
+                                <th width="20%">Location</th>
+                                <th width="25%">Suggestion</th>
+                                <th width="20%">Explanation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for error in grammar_results.errors %}
+                            <tr class="{% if error.type == 'spelling' %}table-danger{% else %}table-warning{% endif %}">
+                                <td class="text-center align-middle">
+                                    {% if error.type == 'spelling' %}
+                                    <span class="badge bg-danger">Spelling</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">Grammar</span>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle">
+                                    <code style="background: #f8f9fa; padding: 2px 6px; border-radius: 3px; color: #d63384;">{{ error.error_text }}</code>
+                                </td>
+                                <td class="align-middle small text-muted">
+                                    {{ error.location if error.location else 'N/A' }}
+                                </td>
+                                <td class="align-middle">
+                                    <span style="color: #28a745; font-weight: 500;">{{ error.suggestion if error.suggestion else 'N/A' }}</span>
+                                </td>
+                                <td class="align-middle small">
+                                    {{ error.explanation if error.explanation else 'N/A' }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-success mb-0">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <strong>Great news!</strong> No spelling or grammar issues were detected in this contract.
+                </div>
+                {% endif %}
+                
+                <div class="alert alert-info mt-3 mb-0 small">
+                    <i class="bi bi-lightbulb me-1"></i>
+                    <strong>Note:</strong> These suggestions are for reference only. Review each carefully in the context of your specific legal requirements before making changes.
+                </div>
+            </div>
+        </div>
     </div>
     {% endif %}
 

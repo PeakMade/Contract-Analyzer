@@ -472,6 +472,87 @@ Return as JSON:
 If parties cannot be clearly identified, return {{"found": false}}"""
 
 
+def check_grammar(text: str, max_words: int = 3000) -> str:
+    """
+    Analyze contract text for grammar issues using AI.
+    
+    Args:
+        text: The contract text to analyze.
+        max_words: Maximum number of words to analyze (default 3000).
+    
+    Returns:
+        Raw AI response string containing grammar analysis.
+    
+    Raises:
+        RuntimeError: On analysis failure.
+    """
+    try:
+        client = _get_client()
+        
+        # Extract sample text for grammar check
+        words = text.split()[:max_words]
+        sample_text = ' '.join(words)
+        
+        grammar_prompt = f"""You are a legal contract grammar expert. Analyze the following contract text for GRAMMAR issues only (NOT spelling).
+
+Focus on:
+- Subject-verb agreement errors
+- Tense consistency issues
+- Pronoun-antecedent agreement
+- Sentence fragments or run-ons
+- Misplaced modifiers
+- Passive voice overuse in critical clauses
+- Ambiguous phrasing that could cause legal confusion
+
+Do NOT report:
+- Spelling errors (handled separately)
+- Style preferences
+- Minor punctuation that doesn't affect meaning
+
+Format your response as a JSON array of grammar issues:
+[
+  {{
+    "error_text": "the actual problematic text",
+    "location": "brief context or section description",
+    "issue": "description of the grammar problem",
+    "suggestion": "how to fix it",
+    "severity": "high|medium|low"
+  }}
+]
+
+If no significant grammar issues found, return an empty array: []
+
+Contract text:
+{sample_text}"""
+        
+        print(f"[AI GRAMMAR] Sending {len(sample_text)} chars to AI for grammar analysis...")
+        
+        response = client.chat.completions.create(
+            model=os.getenv('OPENAI_MODEL', 'gpt-4o-mini'),
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a legal contract grammar expert. Return ONLY a valid JSON array of grammar issues, or an empty array [] if no issues found."
+                },
+                {
+                    "role": "user",
+                    "content": grammar_prompt
+                }
+            ],
+            temperature=0.3,
+            max_tokens=2000,
+            timeout=30.0
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        logger.error(f"AI grammar check failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise RuntimeError(f"AI grammar check error: {str(e)}")
+
+
 def detect_contract_parties(text: str) -> dict:
     """
     Detect the two main parties in a contract (contractor and customer).

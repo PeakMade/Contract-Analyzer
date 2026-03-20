@@ -165,33 +165,8 @@
   <div class="analysis-prep">
     <form method="post" action="{{ url_for('analyze_contract', contract_id=contract_id) }}" style="margin: 10px 0;">
       
-      <!-- Standard Type Selector -->
-      <div style="margin: 10px 0 20px 0;">
-        <label style="color: #495057; font-weight: 600; font-size: 1rem; display: block; margin-bottom: 12px;">
-          Select Standard Type:
-        </label>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-          <button type="button" class="standard-type-btn" data-type="default"
-                  style="padding: 12px 24px; border: 2px solid #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
-            Default Standards ({{ preferred_standards|length }})
-          </button>
-          <button type="button" class="standard-type-btn" data-type="type1"
-                  style="padding: 12px 24px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
-            Type 1 - Security Standards ({{ security_standards|length if security_standards else 0 }})
-          </button>
-          <button type="button" class="standard-type-btn" data-type="type2"
-                  style="padding: 12px 24px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
-            Type 2 - Placeholder
-          </button>
-          <button type="button" class="standard-type-btn" data-type="type3"
-                  style="padding: 12px 24px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
-            Type 3 - Placeholder
-          </button>
-        </div>
-      </div>
-
-      <!-- Default Standards Selection -->
-      <div id="default-standards-section" class="standards-selection standard-type-section" style="margin: 10px 0;">
+      <!-- Default Standards Section -->
+      <div id="default-standards-section" class="standards-selection" style="margin: 10px 0;">
         <h3 style="color: #495057; margin-bottom: 10px; font-weight: 600; font-size: 1.1rem;">
           Default Standards
           <button type="button" onclick="selectAllStandards()" class="select-all-btn-immediate"
@@ -207,7 +182,7 @@
         <!-- Main container with standards grid and custom standards side by side -->
         <div style="display: flex; gap: 20px; align-items: flex-start;" class="standards-layout-container">
 
-          <!-- Left side: Standards Grid (4 columns x 5 rows) -->
+          <!-- Left side: Standards Grid (4 columns) - Shows ALL standards -->
           <div class="standards-container"
             style="flex: 2; border: 2px solid #e9ecef; border-radius: 8px; padding: 12px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
             <div class="standards-grid"
@@ -215,7 +190,7 @@
               {% for item in preferred_standards %}
               <label
                 style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
-                <input type="checkbox" name="standards" value="{{ item.standard }}" checked
+                <input type="checkbox" name="standards" value="{{ item.standard }}" checked class="default-checkbox"
                   style="margin-right: 8px; transform: scale(1.1);">
                 <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">{{ item.standard }}</span>
               </label>
@@ -245,15 +220,16 @@
         </div>
       </div>
 
-      <!-- Type 1 Standards Section (Hidden by default) -->
-      <div id="type1-standards-section" class="standards-selection standard-type-section" style="margin: 10px 0; display: none;">
+      <!-- Security Standards Section (Always visible below default) -->
+      {% if security_standards %}
+      <div id="security-standards-section" class="standards-selection" style="margin: 20px 0 10px 0;">
         <h3 style="color: #495057; margin-bottom: 10px; font-weight: 600; font-size: 1.1rem;">
-          Type 1 - Security Standards
-          <button type="button" onclick="selectAllType1Standards()" class="select-all-btn-immediate"
+          Security Standards
+          <button type="button" onclick="selectAllSecurityStandards()" class="select-all-btn-immediate"
             style="margin-left: 15px !important; padding: 5px 12px !important; background: var(--peakmade-magenta) !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 0.8rem !important; cursor: pointer !important; font-weight: 600 !important; text-transform: uppercase !important;">
             SELECT ALL
           </button>
-          <button type="button" onclick="deselectAllType1Standards()" class="deselect-all-btn-immediate"
+          <button type="button" onclick="deselectAllSecurityStandards()" class="deselect-all-btn-immediate"
             style="margin-left: 8px !important; padding: 5px 12px !important; background: #6c757d !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 0.8rem !important; cursor: pointer !important; font-weight: 600 !important; text-transform: uppercase !important;">
             DESELECT ALL
           </button>
@@ -262,63 +238,18 @@
           style="border: 2px solid #e9ecef; border-radius: 8px; padding: 12px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
           <div class="standards-grid"
             style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-            {% if security_standards %}
-              {% for item in security_standards %}
-              <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
-                <input type="checkbox" name="standards" value="{{ item.standard }}" checked class="type1-checkbox" style="margin-right: 8px; transform: scale(1.1);">
-                <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">{{ item.standard }}</span>
-              </label>
-              {% endfor %}
-            {% else %}
-              <div style="grid-column: 1 / -1; text-align: center; color: #6c757d; padding: 20px;">
-                No security standards available
-              </div>
-            {% endif %}
+            {% for item in security_standards %}
+            <label
+              style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
+              <input type="checkbox" name="standards" value="{{ item.standard }}" checked class="security-checkbox"
+                style="margin-right: 8px; transform: scale(1.1);">
+              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">{{ item.standard }}</span>
+            </label>
+            {% endfor %}
           </div>
         </div>
       </div>
-
-      <!-- Type 2 Standards Section (Hidden by default) -->
-      <div id="type2-standards-section" class="standards-selection standard-type-section" style="margin: 10px 0; display: none;">
-        <h3 style="color: #495057; margin-bottom: 10px; font-weight: 600; font-size: 1.1rem;">
-          Type 2 Standards (Placeholder)
-        </h3>
-        <div class="standards-container"
-          style="border: 2px solid #e9ecef; border-radius: 8px; padding: 12px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-          <div class="standards-grid"
-            style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
-              <input type="checkbox" name="standards" value="Type 2 - Standard X" style="margin-right: 8px; transform: scale(1.1);">
-              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 2 - Standard X</span>
-            </label>
-            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
-              <input type="checkbox" name="standards" value="Type 2 - Standard Y" style="margin-right: 8px; transform: scale(1.1);">
-              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 2 - Standard Y</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- Type 3 Standards Section (Hidden by default) -->
-      <div id="type3-standards-section" class="standards-selection standard-type-section" style="margin: 10px 0; display: none;">
-        <h3 style="color: #495057; margin-bottom: 10px; font-weight: 600; font-size: 1.1rem;">
-          Type 3 Standards (Placeholder)
-        </h3>
-        <div class="standards-container"
-          style="border: 2px solid #e9ecef; border-radius: 8px; padding: 12px; background: #f8f9fa; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-          <div class="standards-grid"
-            style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
-              <input type="checkbox" name="standards" value="Type 3 - Standard Alpha" style="margin-right: 8px; transform: scale(1.1);">
-              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 3 - Standard Alpha</span>
-            </label>
-            <label style="display: flex; align-items: center; justify-content: flex-start; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; transition: all 0.2s ease; min-height: 40px;">
-              <input type="checkbox" name="standards" value="Type 3 - Standard Beta" style="margin-right: 8px; transform: scale(1.1);">
-              <span style="font-weight: 500; color: #495057; font-size: 0.85rem;">Type 3 - Standard Beta</span>
-            </label>
-          </div>
-        </div>
-      </div>
+      {% endif %}
 
       <!-- Centered Run AI Analysis Button -->
       <div style="margin: 20px 0 10px 0; text-align: center;">
@@ -590,30 +521,30 @@ document.addEventListener('DOMContentLoaded', function() {
 // Standards Selection JavaScript (original functionality)
 {% endif %}
 
-// Global functions for Select All / Deselect All
+// Global functions for Select All / Deselect All (Default Standards only)
 function selectAllStandards() {
-  console.log('Selecting all standards');
-  const allCheckboxes = document.querySelectorAll('input[name="standards"]');
-  allCheckboxes.forEach(cb => cb.checked = true);
+  console.log('Selecting all default standards');
+  const defaultCheckboxes = document.querySelectorAll('.default-checkbox');
+  defaultCheckboxes.forEach(cb => cb.checked = true);
 }
 
 function deselectAllStandards() {
-  console.log('Deselecting all standards');
-  const allCheckboxes = document.querySelectorAll('input[name="standards"]');
-  allCheckboxes.forEach(cb => cb.checked = false);
+  console.log('Deselecting all default standards');
+  const defaultCheckboxes = document.querySelectorAll('.default-checkbox');
+  defaultCheckboxes.forEach(cb => cb.checked = false);
 }
 
-// Type 1 (Security) Standards Select All / Deselect All
-function selectAllType1Standards() {
-  console.log('Selecting all Type 1 standards');
-  const type1Checkboxes = document.querySelectorAll('#type1-standards-section input[name="standards"]');
-  type1Checkboxes.forEach(cb => cb.checked = true);
+// Security Standards Select All / Deselect All
+function selectAllSecurityStandards() {
+  console.log('Selecting all security standards');
+  const securityCheckboxes = document.querySelectorAll('.security-checkbox');
+  securityCheckboxes.forEach(cb => cb.checked = true);
 }
 
-function deselectAllType1Standards() {
-  console.log('Deselecting all Type 1 standards');
-  const type1Checkboxes = document.querySelectorAll('#type1-standards-section input[name="standards"]');
-  type1Checkboxes.forEach(cb => cb.checked = false);
+function deselectAllSecurityStandards() {
+  console.log('Deselecting all security standards');
+  const securityCheckboxes = document.querySelectorAll('.security-checkbox');
+  securityCheckboxes.forEach(cb => cb.checked = false);
 }
 
 // Custom standard functionality
@@ -671,50 +602,16 @@ function addCustomStandard() {
   setTimeout(() => msg.remove(), 3000);
 }
 
-// Handle standard type button clicks
-function handleStandardTypeChange(selectedType) {
-  // Hide all standard type sections
-  const allSections = document.querySelectorAll('.standard-type-section');
-  allSections.forEach(section => {
-    section.style.display = 'none';
-  });
-  
-  // Show the selected section
-  const sectionId = selectedType + '-standards-section';
-  const selectedSection = document.getElementById(sectionId);
-  if (selectedSection) {
-    selectedSection.style.display = 'block';
-  }
-  
-  // Update button styles - active button gets gradient, others get white
-  const allButtons = document.querySelectorAll('.standard-type-btn');
-  allButtons.forEach(btn => {
-    const btnType = btn.getAttribute('data-type');
-    if (btnType === selectedType) {
-      // Active button - gradient background
-      btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-      btn.style.color = 'white';
-      btn.style.borderColor = '#667eea';
-      btn.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
-    } else {
-      // Inactive button - white background
-      btn.style.background = 'white';
-      btn.style.color = '#495057';
-      btn.style.borderColor = '#dee2e6';
-      btn.style.boxShadow = 'none';
-    }
-  });
-}
-
-// Initialize on page load
+// Set up custom standard button and form submission on page load
 document.addEventListener('DOMContentLoaded', function() {
-  const addButton = document.getElementById('add-custom-standard');
-  const customInput = document.getElementById('custom-standard-input');
-
-  if (addButton) {
-    addButton.addEventListener('click', addCustomStandard);
+  // Set up "Add Custom Standard" button
+  const addBtn = document.getElementById('add-custom-standard');
+  if (addBtn) {
+    addBtn.addEventListener('click', addCustomStandard);
   }
 
+  // Set up Enter key on custom standard input
+  const customInput = document.getElementById('custom-standard-input');
   if (customInput) {
     customInput.addEventListener('keypress', function(e) {
       if (e.key === 'Enter') {
@@ -723,18 +620,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
-
-  // Set up standard type button handlers
-  const standardTypeButtons = document.querySelectorAll('.standard-type-btn');
-  standardTypeButtons.forEach(btn => {
-    btn.addEventListener('click', function() {
-      const selectedType = this.getAttribute('data-type');
-      handleStandardTypeChange(selectedType);
-    });
-  });
-  
-  // Initialize to show default standards on page load
-  handleStandardTypeChange('default');
 
   // Show loading overlay when AI analysis form is submitted
   const analysisForm = document.querySelector('form[action*="/analyze"]');
@@ -759,19 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 @keyframes blink {
-  0%, 80%, 100% { opacity: 0; }
-  40% { opacity: 1; }
-}
-
-/* Standards selection styling */
-.standards-selection label:hover {
-  background: #e9ecef !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-  transition: all 0.2s ease;
-  border-color: #495057 !important;
-}
-
+  0%, 
 .standards-selection input[type="checkbox"]:checked + span {
   color: #495057;
   font-weight: 700;

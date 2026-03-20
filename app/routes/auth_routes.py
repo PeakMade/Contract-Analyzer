@@ -95,16 +95,21 @@ def login():
 def redirect_handler():
     """Handle Microsoft redirect"""
     try:
-        print(f"\n=== DEBUG /auth/redirect ===")
+        print(f"\n{'='*80}")
+        print(f"=== DEBUG /auth/redirect CALLED ===")
+        print(f"{'='*80}")
         print(f"Query params: {dict(request.args)}")
-        print(f"Session before processing: {dict(session)}")
+        print(f"Session keys before processing: {list(session.keys())}")
+        print(f"Session ID (if available): {session.get('_id', 'NO SESSION ID')}")
+        print(f"Request URL: {request.url}")
+        print(f"Request headers: {dict(request.headers)}")
         
         # CSRF protection: verify state token
         received_state = request.args.get('state')
         stored_state = session.get('oauth_state')
         
-        print(f"DEBUG: State received: {bool(received_state)}")
-        print(f"DEBUG: State stored: {bool(stored_state)}")
+        print(f"DEBUG: State received: {received_state[:20]}..." if received_state else "DEBUG: No state received")
+        print(f"DEBUG: State stored: {stored_state[:20]}..." if stored_state else "DEBUG: No state stored")
         print(f"DEBUG: State matches: {received_state == stored_state}")
         
         if not received_state or received_state != stored_state:
@@ -205,7 +210,16 @@ def redirect_handler():
         session['is_admin'] = admin_status
         print(f"DEBUG: Admin status for {email}: {admin_status}")
         
-        print(f"DEBUG: Session after setting: {list(session.keys())}")
+        print(f"DEBUG: Session keys after setting: {list(session.keys())}")
+        print(f"DEBUG: Verifying session values:")
+        print(f"  - access_token present: {bool(session.get('access_token'))}")
+        print(f"  - user_email: {session.get('user_email')}")
+        print(f"  - user_name: {session.get('user_name')}")
+        print(f"  - is_admin: {session.get('is_admin')}")
+        
+        # CRITICAL: Force save the session
+        session.modified = True
+        print(f"DEBUG: session.modified set to True to force save")
         
         # Log the user login to SharePoint
         print(f"\n{'*'*60}")
@@ -236,6 +250,14 @@ def redirect_handler():
         next_url = session.pop('next_url', '/')
         print(f"DEBUG: Redirecting to next_url: {next_url}")
         print(f"DEBUG: url_for('index') would be: {url_for('index')}")
+        print(f"DEBUG: Final session state before redirect:")
+        print(f"  - Session keys: {list(session.keys())}")
+        print(f"  - access_token: {session.get('access_token')[:20]}..." if session.get('access_token') else "  - access_token: None")
+        print(f"  - user_email: {session.get('user_email')}")
+        print(f"{'='*80}")
+        print(f"=== REDIRECT HANDLER COMPLETE - REDIRECTING NOW ===")
+        print(f"{'='*80}\n")
+        
         return redirect(next_url)
         
     except Exception as e:
