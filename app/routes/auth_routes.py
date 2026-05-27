@@ -72,13 +72,19 @@ def login():
         
         # Create auth URL with all required scopes for file access
         # Note: MSAL automatically adds offline_access - do NOT include it explicitly
+        # Add prompt=select_account if user just logged out to force account picker
+        prompt_value = "select_account" if request.args.get('logged_out') else None
+        
         msal_app = get_msal_app()
-        auth_url = msal_app.get_authorization_request_url(
-            scopes=["User.Read", "Files.ReadWrite.All", "Sites.ReadWrite.All"],
-            redirect_uri=current_app.config['REDIRECT_URI'],
-            state=state,
-            prompt="select_account"
-        )
+        auth_params = {
+            'scopes': ["User.Read", "Files.ReadWrite.All", "Sites.ReadWrite.All"],
+            'redirect_uri': current_app.config['REDIRECT_URI'],
+            'state': state
+        }
+        if prompt_value:
+            auth_params['prompt'] = prompt_value
+            
+        auth_url = msal_app.get_authorization_request_url(**auth_params)
         
         print(f"DEBUG: REDIRECT_URI configured: {current_app.config['REDIRECT_URI']}")
         print(f"DEBUG: Auth URL: {auth_url}")
@@ -303,12 +309,14 @@ def logout():
         # This ensures only the current user's session is invalidated
         session.clear()
         
-        # Redirect to login page which will show Microsoft account picker
-        # User stays signed in to Microsoft but can select their account again
-        print(f"DEBUG: User {user_email} logged out, redirecting to login page")
+        # Use Azure Easy Auth logout with relative path redirect
+        # This logs user out of the app only, not their entire Microsoft account
+        # The logged_out parameter will trigger account picker on re-login
+        print(f"DEBUG: User {user_email} logged out, redirecting to Easy Auth logout")
         
         flash('You have been logged out successfully.', 'info')
-        return redirect(url_for('auth.login'))
+        logout_url = '/.auth/logout?post_logout_redirect_uri=/auth/login?logged_out=true'
+        return redirect(logout_url)
         
     except Exception as e:
         logger.error(f"Logout error: {str(e)}")
