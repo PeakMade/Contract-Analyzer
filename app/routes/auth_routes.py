@@ -201,7 +201,16 @@ def redirect_handler():
         print(f"DEBUG: Token expires at: {token_expires_at} (in {expires_in} seconds)")
         print(f"DEBUG: Refresh token available: {bool(result.get('refresh_token'))}")
         
-        session['user_name'] = user_info.get('displayName', email.split('@')[0])
+        # Construct full name from first and last name if available
+        given_name = user_info.get('givenName', '')
+        surname = user_info.get('surname', '')
+        if given_name and surname:
+            user_name = f"{given_name} {surname}"
+        else:
+            # Fallback to displayName, then email prefix
+            user_name = user_info.get('displayName', email.split('@')[0])
+        
+        session['user_name'] = user_name
         session['user_email'] = email
         
         # Check admin status and cache in session
@@ -225,13 +234,13 @@ def redirect_handler():
         print(f"\n{'*'*60}")
         print(f"DEBUG: ATTEMPTING TO LOG LOGIN TO SHAREPOINT")
         print(f"DEBUG: Email: {email}")
-        print(f"DEBUG: Display Name: {user_info.get('displayName', email.split('@')[0])}")
+        print(f"DEBUG: Display Name: {user_name}")
         print(f"{'*'*60}")
         
         try:
             login_result = activity_logger.log_login(
                 user_email=email,
-                user_display_name=user_info.get('displayName', email.split('@')[0])
+                user_display_name=user_name
             )
             print(f"\n{'*'*60}")
             print(f"DEBUG: LOGIN LOGGING RESULT: {login_result}")
@@ -244,7 +253,7 @@ def redirect_handler():
             print(f"{'*'*60}\n")
         
         logger.info(f"Authentication successful for {email}")
-        flash(f"Welcome, {user_info.get('displayName', email)}!", 'success')
+        flash(f"Welcome, {user_name}!", 'success')
         
         # Redirect to intended page or homepage
         next_url = session.pop('next_url', '/')
