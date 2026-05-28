@@ -330,8 +330,11 @@
             </div>
             <div class="modal-footer justify-content-center">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" id="downloadModalBtn" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 500;">
-                    <i class="bi bi-download me-2"></i>Download Document
+                <button type="button" id="downloadModalBtn" class="btn btn-success">
+                    <i class="bi bi-download me-2"></i>Download Copy
+                </button>
+                <button type="button" id="openWordModalBtn" class="btn btn-primary">
+                    <i class="bi bi-file-word me-2"></i>Open in Word App
                 </button>
             </div>
         </div>
@@ -496,12 +499,12 @@ function showDownloadModal(downloadPath, filename, standardsApplied) {
     const messageEl = document.getElementById('downloadModalMessage');
     const filenameEl = document.getElementById('downloadModalFilename');
     const downloadBtn = document.getElementById('downloadModalBtn');
+    const openWordBtn = document.getElementById('openWordModalBtn');
     
     messageEl.textContent = `Successfully applied ${standardsApplied} standard${standardsApplied !== 1 ? 's' : ''} to your contract.`;
     filenameEl.textContent = filename;
     
-    // Set up download button with iframe method using relative path
-    // Relative path works reliably with Azure proxy (same-origin, no mixed content issues)
+    // Set up download button (existing logic - downloads local copy)
     downloadBtn.onclick = function() {
         console.log('[Download] Starting download:', downloadPath);
         
@@ -525,6 +528,64 @@ function showDownloadModal(downloadPath, filename, standardsApplied) {
         // Modern browsers preserve iframe downloads during same-origin navigation
         console.log('[Download] Redirecting to dashboard');
         window.location.href = '/?tab=dashboard';
+    };
+    
+    // Set up "Open in Word App" button (NEW)
+    openWordBtn.onclick = function() {
+        console.log('[Word] Fetching Word open URL...');
+        
+        // Extract contract ID from downloadPath
+        // downloadPath format: /contracts/{contract_id}/download_edited?exp=...&sig=...
+        const match = downloadPath.match(/\/contracts\/([^\/]+)\/download_edited/);
+        if (!match) {
+            alert('Unable to determine contract ID');
+            return;
+        }
+        const contractId = match[1];
+        
+        // Extract exp and sig from downloadPath for authentication
+        const urlParams = new URLSearchParams(downloadPath.split('?')[1]);
+        const exp = urlParams.get('exp');
+        const sig = urlParams.get('sig');
+        
+        // Build open_word_url endpoint with same auth params
+        const wordUrlEndpoint = `/contracts/${contractId}/open_word_url?exp=${exp}&sig=${sig}`;
+        
+        console.log('[Word] Fetching from:', wordUrlEndpoint);
+        
+        fetch(wordUrlEndpoint, {
+            method: 'GET',
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.wordUrl) {
+                console.log('[Word] Opening in Word app:', data.wordUrl);
+                
+                // Launch Word desktop app with SharePoint file
+                window.location.href = data.wordUrl;
+                
+                // Close modal
+                const modalEl = document.getElementById('downloadReadyModal');
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+                
+                // Redirect to dashboard after a brief delay
+                setTimeout(() => {
+                    console.log('[Word] Redirecting to dashboard');
+                    window.location.href = '/?tab=dashboard';
+                }, 1000);
+            } else {
+                console.error('[Word] Error:', data.error || 'Unknown error');
+                alert('Unable to open in Word: ' + (data.message || data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('[Word] Fetch error:', error);
+            alert('Unable to open in Word: Network error');
+        });
     };
     
     // Show the modal

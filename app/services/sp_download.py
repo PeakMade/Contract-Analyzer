@@ -592,3 +592,55 @@ def download_contract_by_filename(drive_id: str, filename: str) -> bytes:
     
     except requests.exceptions.RequestException as e:
         raise DownloadError(f"Network error: {str(e)}")
+
+
+def get_file_metadata_by_filename(drive_id: str, filename: str) -> dict:
+    """
+    Get file metadata including webUrl from SharePoint by filename.
+    
+    Args:
+        drive_id: SharePoint drive ID
+        filename: Name of the file to get metadata for
+    
+    Returns:
+        dict: File metadata including 'webUrl', 'id', 'name', etc.
+    
+    Raises:
+        FileNotFoundError: If file not found
+        PermissionError: If SESSION_EXPIRED or access denied
+        DownloadError: If request fails for other reasons
+    """
+    token = _get_bearer_token()
+    
+    # Metadata URL: /drives/{driveId}/root:/{filename} (no :/content)
+    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{filename}"
+    
+    headers = {'Authorization': f'Bearer {token}'}
+    
+    print(f"DEBUG sp_download: Getting metadata for file: {filename}")
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            metadata = response.json()
+            print(f"DEBUG sp_download: ✓ Metadata retrieved")
+            print(f"  File ID: {metadata.get('id', 'N/A')[:20]}...")
+            print(f"  WebUrl: {metadata.get('webUrl', 'N/A')[:80]}...")
+            return metadata
+        elif response.status_code == 404:
+            raise FileNotFoundError(f"File not found: {filename}")
+        elif response.status_code == 401:
+            raise PermissionError("SESSION_EXPIRED")
+        else:
+            error_msg = f"Metadata request failed: HTTP {response.status_code}"
+            try:
+                error_data = response.json()
+                if 'error' in error_data:
+                    error_msg += f" - {error_data['error'].get('message', 'Unknown error')}"
+            except:
+                pass
+            raise DownloadError(error_msg)
+    
+    except requests.exceptions.RequestException as e:
+        raise DownloadError(f"Network error: {str(e)}")

@@ -1394,6 +1394,128 @@ def download_edited_contract(contract_id):
         traceback.print_exc()
         return jsonify({'error': 'Download failed', 'message': str(e)}), 500
 
+@app.route('/contracts/<contract_id>/open_word_url')
+def get_word_open_url(contract_id):
+    """
+    Get the SharePoint webUrl and Word protocol URL for opening in Word desktop app.
+    
+    Supports two authentication methods:
+    1. Session-based (logged in user)
+    2. Signed URL (temporary access via HMAC signature)
+    
+    Query params for signed URL:
+        exp: Expiration timestamp (seconds since epoch)
+        sig: HMAC-SHA256 signature
+    
+    Returns:
+        JSON: {
+            'webUrl': 'https://tenant.sharepoint.com/.../file_edited.docx',
+            'wordUrl': 'ms-word:ofe|u|https://tenant.sharepoint.com/.../file_edited.docx',
+            'filename': 'Contract_edited.docx'
+        }
+    """
+    from flask import request, jsonify
+    from app.utils.signed_url import verify_signed
+    from app.services.sp_download import get_file_metadata_by_filename
+    
+    print(f"\n{'='*70}")
+    print(f"GET WORD OPEN URL: Contract {contract_id}")
+    print(f"{'='*70}")
+    
+    # Check authentication: session OR signed URL
+    authenticated = False
+    auth_method = None
+    
+    # Method 1: Check signed URL parameters
+    exp = request.args.get('exp')
+    sig = request.args.get('sig')
+    if exp and sig:
+        if verify_signed(contract_id, exp, sig):
+            authenticated = True
+            auth_method = "signed_url"
+            print(f"✓ Authenticated via signed_url (expires: {exp})")
+    
+    # Method 2: Check session
+    if not authenticated and session.get('access_token'):
+        authenticated = True
+        auth_method = "session"
+        print(f"✓ Authenticated via session")
+    
+    if not authenticated:
+        print(f"✗ ERROR: Unauthorized access attempt")
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    print(f"Auth method: {auth_method}")
+    
+    try:
+        # Get contract from SharePoint
+        print(f"\nFetching contract metadata from SharePoint...")
+        contract = get_contract_by_id(contract_id)
+        if not contract:
+            print(f"✗ ERROR: Contract not found: {contract_id}")
+            return jsonify({'error': 'Contract not found'}), 404
+        
+        # Get original filename and construct edited filename (same logic as download_edited)
+        uploaded_filename = contract.get('file_name', 'contract_uploaded.docx')
+        print(f"Original uploaded filename: {uploaded_filename}")
+        
+        # Extract base name and construct edited filename
+        import re
+        base_filename = uploaded_filename.rsplit('.', 1)[0] if '.' in uploaded_filename else uploaded_filename
+        base_filename = re.sub(r'_(uploaded|edited|completed)$', '', base_filename)
+        edited_filename = f"{base_filename}_edited.docx"
+        
+        print(f"Looking for edited file: {edited_filename}")
+        
+        drive_id = contract.get('DriveId') or os.getenv('DRIVE_ID')
+        print(f"Drive ID: {drive_id}")
+        
+        # Get file metadata (including webUrl) from SharePoint
+        print(f"\nFetching file metadata from SharePoint...")
+        try:
+            metadata = get_file_metadata_by_filename(drive_id, edited_filename)
+        except FileNotFoundError:
+            print(f"✗ ERROR: Edited file not found in SharePoint")
+            return jsonify({
+                'error': 'Edited file not found',
+                'message': 'The edited document may not have been created yet. Please try applying suggestions again.'
+            }), 404
+        except PermissionError as e:
+            print(f"✗ ERROR: Permission denied - {e}")
+            if 'SESSION_EXPIRED' in str(e):
+                return jsonify({'error': 'Session expired', 'message': 'Please sign in again'}), 401
+            raise
+        
+        # Extract SharePoint webUrl
+        web_url = metadata.get('webUrl', '')
+        if not web_url:
+            print(f"✗ ERROR: No webUrl in metadata")
+            return jsonify({'error': 'File URL not available'}), 500
+        
+        print(f"✓ Got SharePoint webUrl")
+        
+        # Construct Word protocol URL: ms-word:ofe|u|{sharepoint_url}
+        word_url = f"ms-word:ofe|u|{web_url}"
+        
+        print(f"\n✓✓✓ SUCCESS ✓✓✓")
+        print(f"  WebUrl: {web_url[:80]}...")
+        print(f"  WordUrl: {word_url[:80]}...")
+        print(f"  Filename: {edited_filename}")
+        print(f"{'='*70}\n")
+        
+        return jsonify({
+            'success': True,
+            'webUrl': web_url,
+            'wordUrl': word_url,
+            'filename': edited_filename
+        })
+    
+    except Exception as e:
+        print(f"Error getting Word open URL: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to get Word URL', 'message': str(e)}), 500
+
 if __name__ == '__main__':
     # CRITICAL: Explicitly disable debug to prevent Werkzeug reloader
     # Reloader causes Python bytecode caching that makes code changes not take effect
